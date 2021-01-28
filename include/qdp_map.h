@@ -380,6 +380,68 @@ struct ForEach<UnaryNode<FnMapJIT, A>, ViewLeaf, OpCombine>
   };
 
 
+#if 1
+template<class A>
+struct ForEach<UnaryNode<FnMapJIT, A>, ViewLeafSpin, OpCombine>
+{
+    typedef typename ForEach<A, ViewLeafSpin, OpCombine>::Type_t TypeA_t;
+    typedef typename Combine1<TypeA_t, FnMapJIT , OpCombine>::Type_t Type_t; // This is a REG container
+    inline
+    static Type_t apply(const UnaryNode<FnMapJIT, A>& expr, const ViewLeafSpin &v, const OpCombine &o)
+    {
+      Type_t ret;
+
+      //
+      // Setup an object (of return type) on the stack
+      //
+      auto ret_stack = stack_alloc<Type_t>();
+      
+      IndexRet index = expr.operation().index;
+
+      llvm::Value * r_multi_index = llvm_array_type_indirection( index.p_multi_index , v.getIndex() );
+
+      JitIf inRecvBuffer( llvm_lt( r_multi_index , llvm_create_value(0) ) );
+      {
+	llvm::Value *idx_buf = llvm_sub ( llvm_neg ( r_multi_index ) , llvm_create_value(1) );
+
+	IndexDomainVector args;
+	args.push_back( make_pair( Layout::sitesOnNode() , idx_buf ) );
+	args.push_back( make_pair( 1 , llvm_create_value(0) ) );
+
+	typename JITType<Type_t>::Type_t t_jit_recv;
+	t_jit_recv.setup( llvm_derefParam(index.p_recv_buf) ,
+			  JitDeviceLayout::Scalar ,
+			  args );
+
+	Type_t tmp;
+	tmp.setup( t_jit_recv );
+
+	ret_stack = tmp;
+      }
+      inRecvBuffer.els();
+      {
+	ViewLeafSpin vv( JitDeviceLayout::Coalesced , r_multi_index , v.spin_i , v.spin_j );
+	Type_t tmp = Combine1<TypeA_t, 
+			      FnMapJIT , 
+			      OpCombine>::combine(ForEach<A, ViewLeafSpin, OpCombine>::apply(expr.child(), vv, o) , 
+						  expr.operation(), o);
+
+
+	ret_stack = tmp;
+      }
+      inRecvBuffer.end();
+      
+      //
+      // Now read the object from the stack into a REG container
+      //
+      ret.setup( ret_stack );
+      
+      return ret;
+    }
+  };
+#endif
+  
+
 
 
 template<class A>

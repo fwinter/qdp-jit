@@ -33,6 +33,7 @@ namespace QDP {
 public:
   typedef C<T,N>  CC;
 
+  typedef T InnerType_t;
 
   //! PMatrixJIT = PScalarJIT
   /*! Fill with primitive scalar */
@@ -165,12 +166,13 @@ public:
     return BaseJIT<T,N*N>::getRegElem( lin );
   }
 
-  T getJitElem(llvm::Value * row,llvm::Value * col) {
+  T getJitElem(llvm::Value * row,llvm::Value * col) const {
     llvm::Value * tmp = llvm_mul( row , llvm_create_value( N ) );
     llvm::Value * lin = llvm_add( tmp , col );
     return BaseJIT<T,N*N>::getJitElem( lin );
   }
 
+  
         T& elem(int i, int j)       {return this->arrayF(j+N*i);}
   const T& elem(int i, int j) const {return this->arrayF(j+N*i);}
 

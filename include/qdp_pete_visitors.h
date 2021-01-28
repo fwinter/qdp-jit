@@ -32,6 +32,18 @@ struct ViewLeaf
 };
 
 
+  struct ViewLeafSpin
+{
+  JitDeviceLayout layout_m;
+  llvm::Value * index_m;
+  llvm::Value * spin_i;
+  llvm::Value * spin_j;
+  ViewLeafSpin( JitDeviceLayout layout , llvm::Value * index , llvm::Value * si, llvm::Value * sj ) : layout_m(layout), index_m(index), spin_i(si) , spin_j(sj)  { }
+  JitDeviceLayout getLayout() const { return layout_m; }
+  llvm::Value    *getIndex() const  { return index_m; }
+};
+
+
 
 struct ParamLeaf {};
 

@@ -386,6 +386,10 @@ namespace COUNT {
 	  {
 	    gpu_set_record_stats();
 	  }
+	else if (strcmp((*argv)[i], "-instcombine")==0) 
+	  {
+	    llvm_pass_instcombine();
+	  }
 #ifdef QDP_CUDA_SPECIAL
 	else if (strcmp((*argv)[i], "-cudaspecial")==0)
 	  {

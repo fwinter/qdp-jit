@@ -30,6 +30,11 @@ using namespace llvm::codegen;
 
 #include "llvm/Transforms/Utils/Cloning.h"
 
+#if 1
+#include "llvm/Transforms/InstCombine/InstCombine.h"
+#include "llvm/Bitcode/BitcodeWriter.h"
+#endif
+
 #include <memory>
 
 namespace QDP {
@@ -37,6 +42,8 @@ namespace QDP {
 
   namespace
   {
+    bool pass_instcombine = false;
+    
     llvm::LLVMContext TheContext;
 
     llvm::Triple TheTriple;
@@ -103,8 +110,19 @@ namespace QDP {
     DBType db;
   }
 
+  
+  void llvm_pass_instcombine()
+  {
+    pass_instcombine = true;
+  }
 
-
+  void llvm_pass_summary()
+  {
+    QDPIO::cout << "LLVM passes: ";
+    if (pass_instcombine) QDPIO::cout << "instcombine ";
+    QDPIO::cout << "\n";
+  }
+  
   llvm::LLVMContext& llvm_get_context()
   {
     return TheContext;
@@ -628,6 +646,8 @@ namespace QDP {
 #else
     llvm_backend_init_cuda();
 #endif
+    // Print summary of activated module passes    
+    llvm_pass_summary();
   }
 
 
@@ -1354,6 +1374,12 @@ namespace QDP {
   {
     llvm::legacy::PassManager PM;
     PM.add( llvm::createInternalizePass( all_but_kernel_name ) );
+
+    if (pass_instcombine)
+      {
+	PM.add( llvm::createInstructionCombiningPass() );
+      }
+    
 #if 0
     unsigned int sm_gpu = gpu_getMajor() * 10 + gpu_getMinor();
     PM.add( llvm::createNVVMReflectPass( sm_gpu ));
@@ -1430,6 +1456,13 @@ namespace QDP {
     QDPIO::cout << "--------------------------  Module dump...\n";
     Mod->print(llvm::errs(), nullptr);
     QDPIO::cout << "--------------------------\n";
+    
+    {
+      std::error_code EC;
+      llvm::raw_fd_ostream OS("module.bc", EC, llvm::sys::fs::F_None);
+      WriteBitcodeToFile(*Mod, OS);
+      OS.flush();
+    }
   }
 
 
@@ -1491,6 +1524,11 @@ namespace QDP {
     llvm::TargetLibraryInfoImpl TLII( TheTriple );
     PM.add(new llvm::TargetLibraryInfoWrapperPass(TLII));
 
+    if (pass_instcombine)
+      {
+	PM.add( llvm::createInstructionCombiningPass() );
+      }
+    
     llvm::LLVMTargetMachine &LLVMTM = static_cast<llvm::LLVMTargetMachine &>(*TargetMachine);
 
     std::error_code ec;

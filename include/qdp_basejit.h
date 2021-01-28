@@ -70,7 +70,7 @@ namespace QDP {
     }
 
 
-    T getJitElem( llvm::Value * index ) {
+    T getJitElem( llvm::Value * index ) const {
       if (!setup_m)
 	{
 	  QDPIO::cerr << "qdp-jit internal error: BaseJIT::getJitElem elem not set up.\n";

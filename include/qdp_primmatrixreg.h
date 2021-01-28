@@ -116,6 +116,8 @@ public:
   inline
   CC& operator-=(const PScalarREG<T1>& rhs) 
     {
+      QDPIO::cout << "**** " << __func__ << "\n";
+
       for(int i=0; i < N; ++i)
 	elem(i,i) -= rhs.elem();
 

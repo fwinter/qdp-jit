@@ -61,8 +61,14 @@ namespace QDP {
   {
     static JitFunction function;
     if (function.empty())
-      function_build(function, dest, op, rhs);
-
+      {
+#if 0
+	function_build(function, dest, op, rhs);
+#else
+	FunctionBuild< T,  T1,  Op,  RHS>( function, dest, op, rhs );
+#endif
+      }
+    
     function_exec(function, dest, op, rhs, s);
   }
 

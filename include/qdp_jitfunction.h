@@ -142,9 +142,168 @@ namespace QDP {
 
 
 
+template<class T, class T1, class Op, class RHS>
+class FunctionBuild
+{
+public:
+  FunctionBuild(JitFunction& function, OLattice<T>& dest, const Op& op, const QDPExpr<RHS,OLattice<T1> >& rhs)
+  {
+    if (ptx_db::db_enabled)
+      {
+	llvm_ptx_db( function , __PRETTY_FUNCTION__ );
+	if (!function.empty())
+	  return;
+      }
 
+
+    llvm_start_new_function("eval",__PRETTY_FUNCTION__ );
+
+    ParamRef p_ordered      = llvm_add_param<bool>();
+    ParamRef p_th_count     = llvm_add_param<int>();
+    ParamRef p_start        = llvm_add_param<int>();
+    ParamRef p_end          = llvm_add_param<int>();
+    ParamRef p_do_site_perm = llvm_add_param<bool>();
+    ParamRef p_site_table   = llvm_add_param<int*>();
+    ParamRef p_member_array = llvm_add_param<bool*>();
+  
+    ParamLeaf param_leaf;
+
+    typedef typename LeafFunctor<OLattice<T>, ParamLeaf>::Type_t  FuncRet_t;
+    FuncRet_t dest_jit(forEach(dest, param_leaf, TreeCombine()));
+
+    auto op_jit = AddOpParam<Op,ParamLeaf>::apply(op,param_leaf);
+
+    typedef typename ForEach<QDPExpr<RHS,OLattice<T1> >, ParamLeaf, TreeCombine>::Type_t View_t;
+    View_t rhs_view(forEach(rhs, param_leaf, TreeCombine()));
+
+    llvm::Value * r_ordered      = llvm_derefParam( p_ordered );
+    llvm::Value * r_th_count     = llvm_derefParam( p_th_count );
+    llvm::Value * r_start        = llvm_derefParam( p_start );
+    llvm::Value * r_end          = llvm_derefParam( p_end );
+    llvm::Value * r_do_site_perm = llvm_derefParam( p_do_site_perm );
+
+    llvm::Value* r_idx_thread = llvm_thread_idx();
+
+    llvm_cond_exit( llvm_ge( r_idx_thread , r_th_count ) );
+
+    llvm::Value* r_idx = jit_ternary( r_do_site_perm ,
+				      JitDeferArrayTypeIndirection( p_site_table , r_idx_thread ),
+				      jit_ternary( r_ordered,
+						   JitDeferAdd( r_idx_thread , r_start ),
+						   r_idx_thread
+						   )
+				      );
+
+    JitIf ordered(r_ordered);
+    {
+      llvm_cond_exit( llvm_gt( r_idx , r_end ) );
+      llvm_cond_exit( llvm_lt( r_idx , r_start ) ); // This can be removed, as r_idx >= 0
+    }
+    ordered.els();
+    {
+      llvm_cond_exit( llvm_not( llvm_array_type_indirection( p_member_array , r_idx ) ) );
+    }
+    ordered.end();
+  
+
+    op_jit( dest_jit.elem( JitDeviceLayout::Coalesced , r_idx ), 
+	    forEach(rhs_view, ViewLeaf( JitDeviceLayout::Coalesced , r_idx ), OpCombine()));
+
+
+    jit_get_function( function );
+
+  }
+};
+
+#if 1
+template< class W, class T1, class Op, class RHS >
+class FunctionBuild< QDP::PSpinMatrix<QDP::PColorMatrix<QDP::RComplex<QDP::Word< W > >, 3>, 4> , T1 , Op , RHS >
+{
+  typedef QDP::PSpinMatrix<QDP::PColorMatrix<QDP::RComplex<QDP::Word< W > >, 3>, 4> T;
+
+public:
+  FunctionBuild(JitFunction& function, OLattice<T>& dest, const Op& op, const QDPExpr<RHS,OLattice<T1> >& rhs)
+  {
+    QDPIO::cout << " ** in special eval\n";
+    QDPIO::cout << __PRETTY_FUNCTION__ << "\n";
+    
+    if (ptx_db::db_enabled)
+      {
+	llvm_ptx_db( function , __PRETTY_FUNCTION__ );
+	if (!function.empty())
+	  return;
+      }
+
+
+    llvm_start_new_function("eval",__PRETTY_FUNCTION__ );
+
+    ParamRef p_ordered      = llvm_add_param<bool>();
+    ParamRef p_th_count     = llvm_add_param<int>();
+    ParamRef p_start        = llvm_add_param<int>();
+    ParamRef p_end          = llvm_add_param<int>();
+    ParamRef p_do_site_perm = llvm_add_param<bool>();
+    ParamRef p_site_table   = llvm_add_param<int*>();
+    ParamRef p_member_array = llvm_add_param<bool*>();
+  
+    ParamLeaf param_leaf;
+
+    typedef typename LeafFunctor<OLattice<T>, ParamLeaf>::Type_t  FuncRet_t;
+    FuncRet_t dest_jit(forEach(dest, param_leaf, TreeCombine()));
+
+    auto op_jit = AddOpParam<Op,ParamLeaf>::apply(op,param_leaf);
+
+    typedef typename ForEach<QDPExpr<RHS,OLattice<T1> >, ParamLeaf, TreeCombine>::Type_t View_t;
+    View_t rhs_view(forEach(rhs, param_leaf, TreeCombine()));
+
+    llvm::Value * r_ordered      = llvm_derefParam( p_ordered );
+    llvm::Value * r_th_count     = llvm_derefParam( p_th_count );
+    llvm::Value * r_start        = llvm_derefParam( p_start );
+    llvm::Value * r_end          = llvm_derefParam( p_end );
+    llvm::Value * r_do_site_perm = llvm_derefParam( p_do_site_perm );
+
+    llvm::Value* r_idx_thread = llvm_thread_idx();
+
+    llvm_cond_exit( llvm_ge( r_idx_thread , r_th_count ) );
+
+    llvm::Value* r_idx = jit_ternary( r_do_site_perm ,
+				      JitDeferArrayTypeIndirection( p_site_table , r_idx_thread ),
+				      jit_ternary( r_ordered,
+						   JitDeferAdd( r_idx_thread , r_start ),
+						   r_idx_thread
+						   )
+				      );
+
+    JitIf ordered(r_ordered);
+    {
+      llvm_cond_exit( llvm_gt( r_idx , r_end ) );
+      llvm_cond_exit( llvm_lt( r_idx , r_start ) ); // This can be removed, as r_idx >= 0
+    }
+    ordered.els();
+    {
+      llvm_cond_exit( llvm_not( llvm_array_type_indirection( p_member_array , r_idx ) ) );
+    }
+    ordered.end();
+  
+    JitForLoop loop_i(0,4);
+    {
+      JitForLoop loop_j(0,4);
+      {
+	op_jit( dest_jit.elem( JitDeviceLayout::Coalesced , r_idx ).getJitElem( loop_i.index() , loop_j.index() ),
+		forEach(rhs_view, ViewLeafSpin( JitDeviceLayout::Coalesced , r_idx , loop_i.index() , loop_j.index() ), OpCombine()));
+      }
+      loop_j.end();
+    }
+    loop_i.end();
+
+    jit_get_function( function );
+
+  }
+};
+#endif
 
   
+  
+#if 0
 template<class T, class T1, class Op, class RHS>
 void
 function_build(JitFunction& function, OLattice<T>& dest, const Op& op, const QDPExpr<RHS,OLattice<T1> >& rhs)
@@ -213,8 +372,84 @@ function_build(JitFunction& function, OLattice<T>& dest, const Op& op, const QDP
 
   jit_get_function( function );
 }
+#endif
+  
+
+#if 0
+template<class T1, class Op, class RHS>
+void
+  function_build<QDP::PSpinMatrix<QDP::PColorMatrix<QDP::RComplex<QDP::Word<float> >, 3>, 4>, T1, Op, RHS>(JitFunction& function, OLattice< QDP::PSpinMatrix<QDP::PColorMatrix<QDP::RComplex<QDP::Word<float> >, 3>, 4> >& dest, const Op& op, const QDPExpr<RHS,OLattice<T1> >& rhs)
+{
+  typedef QDP::PSpinMatrix<QDP::PColorMatrix<QDP::RComplex<QDP::Word<float> >, 3>, 4> T;
+
+  QDPIO::cout << "*** in special eval\n";
+  
+  if (ptx_db::db_enabled)
+    {
+      llvm_ptx_db( function , __PRETTY_FUNCTION__ );
+      if (!function.empty())
+	return;
+    }
 
 
+  llvm_start_new_function("eval",__PRETTY_FUNCTION__ );
+
+  ParamRef p_ordered      = llvm_add_param<bool>();
+  ParamRef p_th_count     = llvm_add_param<int>();
+  ParamRef p_start        = llvm_add_param<int>();
+  ParamRef p_end          = llvm_add_param<int>();
+  ParamRef p_do_site_perm = llvm_add_param<bool>();
+  ParamRef p_site_table   = llvm_add_param<int*>();
+  ParamRef p_member_array = llvm_add_param<bool*>();
+  
+  ParamLeaf param_leaf;
+
+  typedef typename LeafFunctor<OLattice<T>, ParamLeaf>::Type_t  FuncRet_t;
+  FuncRet_t dest_jit(forEach(dest, param_leaf, TreeCombine()));
+
+  auto op_jit = AddOpParam<Op,ParamLeaf>::apply(op,param_leaf);
+
+  typedef typename ForEach<QDPExpr<RHS,OLattice<T1> >, ParamLeaf, TreeCombine>::Type_t View_t;
+  View_t rhs_view(forEach(rhs, param_leaf, TreeCombine()));
+
+  llvm::Value * r_ordered      = llvm_derefParam( p_ordered );
+  llvm::Value * r_th_count     = llvm_derefParam( p_th_count );
+  llvm::Value * r_start        = llvm_derefParam( p_start );
+  llvm::Value * r_end          = llvm_derefParam( p_end );
+  llvm::Value * r_do_site_perm = llvm_derefParam( p_do_site_perm );
+
+  llvm::Value* r_idx_thread = llvm_thread_idx();
+
+  llvm_cond_exit( llvm_ge( r_idx_thread , r_th_count ) );
+
+  llvm::Value* r_idx = jit_ternary( r_do_site_perm ,
+				    JitDeferArrayTypeIndirection( p_site_table , r_idx_thread ),
+                                    jit_ternary( r_ordered,
+                                                 JitDeferAdd( r_idx_thread , r_start ),
+                                                 r_idx_thread
+						 )
+				    );
+
+  JitIf ordered(r_ordered);
+  {
+    llvm_cond_exit( llvm_gt( r_idx , r_end ) );
+    llvm_cond_exit( llvm_lt( r_idx , r_start ) ); // This can be removed, as r_idx >= 0
+  }
+  ordered.els();
+  {
+    llvm_cond_exit( llvm_not( llvm_array_type_indirection( p_member_array , r_idx ) ) );
+  }
+  ordered.end();
+  
+
+  op_jit( dest_jit.elem( JitDeviceLayout::Coalesced , r_idx ), 
+	  forEach(rhs_view, ViewLeaf( JitDeviceLayout::Coalesced , r_idx ), OpCombine()));
+
+
+  jit_get_function( function );
+}
+#endif
+  
 
 
 template<class T, class C1, class Op, class RHS>

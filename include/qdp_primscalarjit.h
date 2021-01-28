@@ -32,7 +32,9 @@ namespace QDP {
 #endif
     
   public:
-
+    typedef T InnerType_t;
+    
+    
     // Default constructing should be possible
     PScalarJIT() {}
 

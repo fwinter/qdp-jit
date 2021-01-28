@@ -32,6 +32,8 @@ template <class T, int N, template<class,int> class C> class PVectorJIT: public 
 public:
   typedef C<T,N>  CC;
 
+  typedef T InnerType_t;
+  
   //! PVectorJIT = PVectorJIT
   /*! Set equal to another PVectorJIT */
   //template<class T1>

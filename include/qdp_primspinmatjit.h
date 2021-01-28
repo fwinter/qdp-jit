@@ -86,8 +86,8 @@ public:
   inline
   PSpinMatrixJIT& operator-=(const PSpinMatrixREG<T1,N>& rhs) 
     {
-      for(int i=0; i < N; ++i)
-  	for(int j=0; j < N; ++j)
+      for(int i=0; i < 1; ++i)
+  	for(int j=0; j < 1; ++j)
   	  this->elem(i,j) -= rhs.elem(i,j);
 
       return *this;

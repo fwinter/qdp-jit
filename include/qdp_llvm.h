@@ -97,6 +97,10 @@ namespace QDP {
     extern std::string dbname;
   }
 
+  
+  void llvm_pass_instcombine();
+
+    
   void llvm_ptx_db( JitFunction& f, const char * pretty );
 
   
