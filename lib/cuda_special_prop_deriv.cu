@@ -135,7 +135,7 @@ __global__ void cuda_prop_deriv( int threads, int N , int start ,
 	      for( int c2 = 0 ; c2 < 3 ; ++c2)
 		{
 		  if (goff0m[idx] < 0)
-		    Qs[c1][c2] = cuComplex(  recv0m[ iQ(N,spin_i,spin_j,c1,c2,0,-goff0m[idx]-1) ] , recv0m[ iQ(N,spin_i,spin_j,c1,c2,1,-goff0m[idx]-1) ] );
+		    Qs[c1][c2] = cuComplex(  recv0m[ iQscalar(spin_i,spin_j,c1,c2,0,-goff0m[idx]-1) ] , recv0m[ iQscalar(spin_i,spin_j,c1,c2,1,-goff0m[idx]-1) ] );
 		  else
 		    Qs[c1][c2] = cuComplex(  Q1[ iQ(N,spin_i,spin_j,c1,c2,0,goff0m[idx]) ] , Q1[ iQ(N,spin_i,spin_j,c1,c2,1,goff0m[idx]) ] );
 
