@@ -1542,6 +1542,11 @@ namespace QDP {
   {
     addKernelMetadata( mainFunc );
 
+    if (Layout::primaryNode())
+      {
+	//llvm_module_dump();
+      }
+
     if (math_declarations.size() > 0)
       {
 	llvm_init_libdevice();
@@ -1806,10 +1811,6 @@ namespace QDP {
 	//llvm_module_dump();
       }
     
-    if (jit_config_get_verbose_output())
-      {
-	QDPIO::cout << str_pretty << "\n";
-      }
     
     std::string shared_path = "module_" + str_kernel_name + ".so";
 
@@ -1858,7 +1859,12 @@ namespace QDP {
   {
     builder->SetInsertPoint(bb_stack,it_stack);
     builder->CreateBr( bb_afterstack );
-    
+
+    if (jit_config_get_verbose_output())
+      {
+	QDPIO::cout << str_pretty << "\n";
+      }
+
 #ifdef QDP_BACKEND_ROCM
     llvm_build_function_rocm(func);
 #else

@@ -48,7 +48,7 @@ struct AddressLeaf
   }
   
   AddressLeaf(const Subset& s): subset(s) {}
-  AddressLeaf(const AddressLeaf& cp) = delete;
+  AddressLeaf(const AddressLeaf& cp) = delete;  
 
   AddressLeaf& operator=(const AddressLeaf& cp) = delete;
 

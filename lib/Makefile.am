@@ -47,7 +47,8 @@ libqdp_a_SOURCES += \
         cuda_special_quarkContract13.cu \
         cuda_special_quarkContract14.cu \
         cuda_special_quarkContract23.cu \
-        cuda_special_quarkContract24.cu
+        cuda_special_quarkContract24.cu \
+        cuda_special_prop_deriv.cu
 endif
 
 

@@ -508,6 +508,7 @@ struct LeafFunctor<QDPType<T,C>, AddressLeaf>
   inline static
   Type_t apply(const QDPType<T,C>& s, const AddressLeaf& p) 
   {
+    QDPIO::cout << __PRETTY_FUNCTION__ << std::endl;
     p.setIdElem( s.getId() , s.getElemNum() );
     return 0;
   }

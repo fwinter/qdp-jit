@@ -14,6 +14,9 @@ void evaluate_special_quarkContract14( int N, std::vector<void*> args );
 void evaluate_special_quarkContract23( int N, std::vector<void*> args );
 void evaluate_special_quarkContract24( int N, std::vector<void*> args );
 
+void evaluate_special_prop_deriv( int th_count, int N , int start, std::vector<void*> args , bool siteperm , int func_num );
+
+
 void jumper_jit_stats_special(int i);
 
 #endif
