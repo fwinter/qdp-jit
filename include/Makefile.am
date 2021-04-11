@@ -43,7 +43,10 @@ CUDA_HDRS += custom_kernels/custom_kernels.h \
 endif
 
 if QDP_CUDA_SPECIAL
-CUDA_HDRS += qdp_functions_special.h cuda_special.h
+CUDA_HDRS += \
+	qdp_functions_special.h \
+	qdp_functions_special_prop_deriv.h \
+	cuda_special.h
 endif
 
 

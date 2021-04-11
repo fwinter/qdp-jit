@@ -1,6 +1,7 @@
 #ifndef QDP_FUNCTIONS_SPECIAL_H
 #define QDP_FUNCTIONS_SPECIAL_H
 
+#include "qdp_functions_special_prop_deriv.h"
 
 namespace QDP
 {
@@ -65,12 +66,8 @@ namespace QDP
 		 OLattice< PSpinMatrix<PColorMatrix<RComplex<Word<float> >, 3>, 4> > >& rhs,
 		 const Subset& s);
 
-  void evaluate( OLattice< PSpinMatrix<PColorMatrix<RComplex<Word<float> >, 3>, 4> >& dest,
-		 const OpSubtractAssign& op,
-		 const QDPExpr< BinaryNode<OpAdd, BinaryNode<OpMultiply, Reference<QDPType<PScalar<PColorMatrix<RComplex<Word<float> >, 3> >, OLattice<PScalar<PColorMatrix<RComplex<Word<float> >, 3> > > > >, UnaryNode<FnMap, Reference<QDPType<PSpinMatrix<PColorMatrix<RComplex<Word<float> >, 3>, 4>, OLattice<PSpinMatrix<PColorMatrix<RComplex<Word<float> >, 3>, 4> > > > > >, UnaryNode<FnMap, BinaryNode<OpAdjMultiply, UnaryNode<OpIdentity, Reference<QDPType<PScalar<PColorMatrix<RComplex<Word<float> >, 3> >, OLattice<PScalar<PColorMatrix<RComplex<Word<float> >, 3> > > > > >, Reference<QDPType<PSpinMatrix<PColorMatrix<RComplex<Word<float> >, 3>, 4>, OLattice<PSpinMatrix<PColorMatrix<RComplex<Word<float> >, 3>, 4> > > > > > > , OLattice< PSpinMatrix<PColorMatrix<RComplex<Word<float> >, 3>, 4> > >& rhs,
-		 const Subset& s );
 
-
+  
   
   
 }
