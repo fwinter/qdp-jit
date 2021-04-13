@@ -53,7 +53,7 @@ endif
 
 
 .cu.o:
-	@CUDA_NVCC@ -arch=@CUDA_SM@ -I@top_srcdir@/include -dw -o $@ $<
+	@CUDA_NVCC@ --ptxas-options=-v -arch=@CUDA_SM@ -I@top_srcdir@/include -dw -o $@ $<
 
 
 

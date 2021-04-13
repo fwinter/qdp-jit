@@ -31,7 +31,7 @@ namespace QDP
       const Map& map(op.map);
       FnMap& fnmap = const_cast<FnMap&>(op);
 
-      QDPIO::cout << "goff, recv \n";
+      //QDPIO::cout << "goff, recv \n";
 
       a.setId( op.map.getGoffsetsId(a.subset) );
       a.setId( map.hasOffnode() ? fnmap.getCached().getRecvBufId() : -1 );
@@ -46,8 +46,13 @@ namespace QDP
 		 const Subset& s )
   {
     typedef BinaryNode<OpAdd, BinaryNode<OpMultiply, Reference<QDPType<PScalar<PColorMatrix<RComplex<Word<T> >, 3> >, OLattice<PScalar<PColorMatrix<RComplex<Word<T> >, 3> > > > >, UnaryNode<FnMap, Reference<QDPType<PSpinMatrix<PColorMatrix<RComplex<Word<T> >, 3>, 4>, OLattice<PSpinMatrix<PColorMatrix<RComplex<Word<T> >, 3>, 4> > > > > >, UnaryNode<FnMap, BinaryNode<OpAdjMultiply, UnaryNode<OpIdentity, Reference<QDPType<PScalar<PColorMatrix<RComplex<Word<T> >, 3> >, OLattice<PScalar<PColorMatrix<RComplex<Word<T> >, 3> > > > > >, Reference<QDPType<PSpinMatrix<PColorMatrix<RComplex<Word<T> >, 3>, 4>, OLattice<PSpinMatrix<PColorMatrix<RComplex<Word<T> >, 3>, 4> > > > > > > RHS_prop_deriv;
-    
-    QDPIO::cout << "in template specialization prop_deriv \n";
+
+    static bool printed = false;
+    if (!printed)
+      {
+	QDPIO::cout << "in template specialization prop_deriv \n";
+	printed = true;
+      }
     
     typedef QDPExpr< RHS_prop_deriv , OLattice< PSpinMatrix<PColorMatrix<RComplex<Word<T> >, 3>, 4> > >  Expr;
     typedef typename CreateLeaf<Expr>::Leaf_t Expr_t;
@@ -76,12 +81,12 @@ namespace QDP
     Address_t::apply( e , addr_leaf , addr_leaf , NullTag());
 
 
-    QDPIO::cout << "number of ids = " << addr_leaf.ids.size() << std::endl;
+    //QDPIO::cout << "number of ids = " << addr_leaf.ids.size() << std::endl;
     
 
     if (offnode_maps == 0)
       {
-	QDPIO::cout << "no offnode comms\n";
+	//QDPIO::cout << "no offnode comms\n";
 	
 	int th_count = s.hasOrderedRep() ? s.numSiteTable() : Layout::sitesOnNode();
 

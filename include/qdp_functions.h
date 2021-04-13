@@ -43,7 +43,7 @@ namespace QDP {
   void evaluate(OLattice<T>& dest, const Op& op, const QDPExpr<RHS,OLattice<T1> >& rhs,
 		const Subset& s)
   {
-    QDPIO::cout << __PRETTY_FUNCTION__ << std::endl;
+    //QDPIO::cout << __PRETTY_FUNCTION__ << std::endl;
     
     static JitFunctionMap function_map;
 
