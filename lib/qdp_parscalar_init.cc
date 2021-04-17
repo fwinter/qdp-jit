@@ -435,6 +435,14 @@ namespace QDP {
 	    jit_config_set_codegen_opt( val );
 	  }
 #endif
+#ifdef QDP_BACKEND_CUDA
+	else if (strcmp((*argv)[i], "-cuda-ftz")==0)
+	  {
+	    unsigned val;
+	    sscanf((*argv)[++i],"%u",&val);
+	    jit_config_set_CUDA_FTZ( val );
+	  }
+#endif
 #ifdef QDP_CUDA_SPECIAL
 	else if (strcmp((*argv)[i], "-cudaspecial")==0)
 	  {
@@ -720,6 +728,29 @@ namespace QDP {
 		
 		QDPIO::cout << "Code generator \n";
 		QDPIO::cout << "  functions jit-compiled:                  " << get_jit_stats_jitted() << "\n";
+
+		{
+		  std::vector<JitFunction*>& all = gpu_get_functions();
+		  double time_builder = 0.;
+		  double time_math = 0.;
+		  double time_passes = 0.;
+		  double time_codegen = 0.;
+		  double time_dynload = 0.;
+		  for ( int i = 0 ; i < all.size() ; ++i )
+		    {
+		      time_builder += all.at(i)->time_builder;
+		      time_math    += all.at(i)->time_math;
+		      time_passes  += all.at(i)->time_passes;
+		      time_codegen += all.at(i)->time_codegen;
+		      time_dynload += all.at(i)->time_dynload;
+		    }
+		  QDPIO::cout << "  total time for IR builder:               " << time_builder/1.e6 << " s\n";
+		  QDPIO::cout << "  total time for libm IR linking:          " << time_math/1.e6 << " s\n";
+		  QDPIO::cout << "  total time for IR passes:                " << time_passes/1.e6 << " s\n";
+		  QDPIO::cout << "  total time for code generation:          " << time_codegen/1.e6 << " s\n";
+		  QDPIO::cout << "  total time for dynamic loading:          " << time_dynload/1.e6 << " s\n";
+		}
+
 #ifndef QDP_BACKEND_ROCM
 		if (get_ptx_db_enabled())
 		  {
