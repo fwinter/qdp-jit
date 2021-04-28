@@ -25,10 +25,45 @@ struct ShiftPhase2
 struct ViewLeaf
 {
   JitDeviceLayout layout_m;
-  llvm::Value * index_m;
-  ViewLeaf( JitDeviceLayout layout , llvm::Value * index ) : layout_m(layout), index_m(index) { }
+  IndexDomainVector idv_m;
+  
+  ViewLeaf( JitDeviceLayout layout , llvm::Value * index ) : layout_m(layout)
+  {
+    idv_m.push_back( make_pair( Layout::sitesOnNode() , index ) );
+  }
+  
+  ViewLeaf( JitDeviceLayout layout , IndexDomainVector idv ): layout_m(layout), idv_m(idv)
+  {
+  }
+  
   JitDeviceLayout getLayout() const { return layout_m; }
-  llvm::Value    *getIndex() const  { return index_m; }
+
+  llvm::Value *getIndex() const
+  {
+    llvm::Value *ret;
+    
+    if (idv_m.empty())
+      {
+	QDPIO::cerr << "ViewLeaf: asking for index but IDV empty." << std::endl;
+	QDP_abort(1);
+      }
+    else
+      {
+	llvm::Value * thread_idx = llvm_create_value(0);
+	for( auto x = idv_m.begin() ; x != idv_m.end() ; x++ )
+	  {
+	    int         Index;
+	    llvm::Value * index;
+	    std::tie(Index,index) = *x;
+	    llvm::Value * Index_jit = llvm_create_value(Index);
+	    thread_idx = llvm_add( llvm_mul( thread_idx , Index_jit ) , index );
+	  }
+	ret = thread_idx;
+      }
+    return ret;
+  }
+
+
 };
 
 

@@ -110,7 +110,10 @@ void Set::make(const SetFunc& fun)
       QDP_error_exit("Set: found site with node outside current node!");
 
     if (lin != linear)
-      QDP_error_exit("Set: inconsistent linear sites");
+      {
+	QDPIO::cout << coord[0] << "," << coord[1] << "," << coord[2] << "," << coord[3] << ": " << lin << " != " << linear << std::endl;
+	QDP_error_exit("Set: inconsistent linear sites");
+      }
 
     if (icolor < 0 || icolor >= nsubset_indices)
       QDP_error_exit("Set: coloring is outside legal range: color[%d]=%d",linear,icolor);

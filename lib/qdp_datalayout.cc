@@ -51,15 +51,28 @@ namespace QDP {
   llvm::Value * datalayout( JitDeviceLayout lay , IndexDomainVector a ) {
     assert(a.size() > 0);
 
+    // QDPIO::cout << "datalayout, domains = ";
+    // for ( auto& i : a )
+    //   QDPIO::cout << i.first << ", ";
+    // QDPIO::cout << std::endl;
+    
     // In case of a coalesced layout (OLattice)
     // We reverse the data layout given by the natural nesting order
     // of aggregates, i.e. reality slowest, lattice fastest
     // In case of a scalar layout (sums,comms buffers,OScalar)
     // We actually use the index order/data layout given by the
     // nesting order of aggregates
-    if ( lay == JitDeviceLayout::Coalesced ) {
-      std::reverse( a.begin() , a.end() );
-    }
+    if ( lay == JitDeviceLayout::Coalesced )
+      {
+	if (a.size() == 6)
+	  {
+	    std::reverse( a.begin() , a.end() );
+	  }
+	else
+	  {
+	    std::reverse( a.begin() , a.end() );
+	  }
+      }
 
     llvm::Value * offset = llvm_create_value(0);
     for( auto x = a.begin() ; x != a.end() ; x++ ) {
@@ -69,6 +82,12 @@ namespace QDP {
       llvm::Value * Index_jit = llvm_create_value(Index);
       offset = llvm_add( llvm_mul( offset , Index_jit ) , index );
     }
+
+    if (a.hasAdd())
+      {
+	offset = llvm_add( offset , a.getAdd() );
+      }
+    
     return offset;
   }
 

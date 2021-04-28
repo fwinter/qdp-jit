@@ -73,12 +73,14 @@ namespace QDP {
 
 
   struct kernel_geom_t {
-    int threads_per_block;
+    int blocksize_x;
+    int blocksize_y;
     int Nblock_x;
     int Nblock_y;
   };
 
-  kernel_geom_t getGeom(int numSites , int threadsPerBlock);
+  kernel_geom_t getGeom( int _num_sites , int _blocksize_x , int _blocksize_y );
+  kernel_geom_t getGeom( int _num_sites , int threads_per_block );
 
   size_t gpu_getMaxGridX();
   size_t gpu_getMaxGridY();

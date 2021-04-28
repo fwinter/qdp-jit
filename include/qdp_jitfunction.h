@@ -72,8 +72,8 @@ namespace QDP {
     typename LeafFunctor<QDPSubType<T2,C2>, ParamLeaf>::Type_t   r_jit(forEach(r, param_leaf, TreeCombine()));
 	
     llvm::Value * r_th_count     = llvm_derefParam( p_th_count );
-    llvm::Value* r_idx_thread = llvm_thread_idx();
 
+    llvm::Value* r_idx_thread = llvm_thread_idx();
     llvm_cond_exit( llvm_ge( r_idx_thread , r_th_count ) );
 
     llvm::Value* r_idx_perm = llvm_array_type_indirection( p_site_table , r_idx_thread );
@@ -216,6 +216,20 @@ function_build(JitFunction& function, const DynKey& key, OLattice<T>& dest, cons
 	  llvm::Value * r_th_count     = llvm_derefParam( p_th_count );
 	  llvm::Value * r_start        = llvm_derefParam( p_start );
 
+#if 1
+	  IndexDomainVector idv;
+	  idv.push_back( make_pair( jit_config_get_blocksize_x() , llvm_call_special_tidx() ) );
+	  idv.push_back( make_pair( jit_config_get_blocksize_y() , llvm_call_special_tidy() ) );
+	  idv.push_back( make_pair( Layout::sitesOnNode() / ( jit_config_get_blocksize_y() * jit_config_get_blocksize_x() ) , llvm_block_idx() ) );
+	  idv.setAdd( r_start );
+	  
+	  //llvm::Value* r_idx_thread = llvm_thread_idx();
+
+	  //llvm_cond_exit( llvm_ge( r_idx_thread , r_th_count ) );
+
+	  op_jit( dest_jit.elem( JitDeviceLayout::Coalesced , idv ), 
+		  forEach(rhs_view, ViewLeaf( JitDeviceLayout::Coalesced , idv ), OpCombine()));
+#else
 	  llvm::Value* r_idx_thread = llvm_thread_idx();
 
 	  llvm_cond_exit( llvm_ge( r_idx_thread , r_th_count ) );
@@ -224,6 +238,7 @@ function_build(JitFunction& function, const DynKey& key, OLattice<T>& dest, cons
 
 	  op_jit( dest_jit.elem( JitDeviceLayout::Coalesced , r_idx ), 
 		  forEach(rhs_view, ViewLeaf( JitDeviceLayout::Coalesced , r_idx ), OpCombine()));
+#endif
 	}
       else // unordered Subset
 	{

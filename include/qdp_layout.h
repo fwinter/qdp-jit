@@ -125,6 +125,12 @@ namespace Layout
   const multi1d<int>& getIONodeGrid() QDP_CONST;
 
 
+  multi1d<int> virtualNodeGeom();
+  multi1d<int> virtualNodeLattSize();
+  int virtualNodeSites();
+  int virtualNodeNumber();
+  void setDefaultVirtualNodeGeom();
+  void setVirtualNodeGeom(const multi1d<int>&);
 
 }
 

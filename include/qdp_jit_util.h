@@ -3,6 +3,8 @@
 
 namespace QDP {
 
+  IndexDomainVector jit_util_get_th_geom();
+
 
   void jit_util_ringBuffer_init();
   int  jit_util_ringBuffer_allocate( size_t size , const void *hstPtr );

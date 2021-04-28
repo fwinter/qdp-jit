@@ -250,6 +250,7 @@ namespace QDP {
   llvm::Value * llvm_special( const char * name );
 
   llvm::Value * llvm_call_special_tidx();
+  llvm::Value * llvm_call_special_tidy();
   llvm::Value * llvm_call_special_ntidx();
   llvm::Value * llvm_call_special_ctaidx();
   llvm::Value * llvm_call_special_nctaidx();
@@ -259,7 +260,9 @@ namespace QDP {
 
   void llvm_bar_sync();
 
+
   llvm::Value * llvm_thread_idx();
+  llvm::Value * llvm_block_idx();
 
   void addKernelMetadata(llvm::Function *F);
 

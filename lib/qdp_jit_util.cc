@@ -41,6 +41,9 @@ namespace QDP {
   }
 
 
+
+  
+
   void jit_util_ringBuffer_init()
   {
     ringBufferOScalar.resize( jit_config_get_oscalar_ringbuffer_size() , -1 );
@@ -68,11 +71,13 @@ namespace QDP {
   }
   
 
+  
   int jit_util_get_tune_count()
   {
     return db_tune_count;
   }
-  
+
+
   void db_tune_write( std::string filename )
   {
     if (!db_tune_modified)
@@ -129,6 +134,7 @@ namespace QDP {
 
     QDPIO::cout << "  done reading tuning file" << std::endl;
   }
+#if 0
 
   
   bool db_tune_find_info( JitFunction& function )
@@ -154,7 +160,7 @@ namespace QDP {
     db_tune_modified = true;
     db_tune_count++;
   }
-
+#endif
   
 
 
@@ -183,9 +189,11 @@ namespace QDP {
   void JIT_AMD_add_workgroup_sizes( std::vector<QDPCache::ArgKey>& ids )
   {
     JitParam jit_ntidx( QDP_get_global_cache().addJitParamInt( -1 ) );
+    JitParam jit_ntidy( QDP_get_global_cache().addJitParamInt( -1 ) );
     JitParam jit_nctaidx( QDP_get_global_cache().addJitParamInt( -1 ) );
 
     ids.insert(ids.begin(), jit_nctaidx.get_id() );
+    ids.insert(ids.begin(), jit_ntidy.get_id() );
     ids.insert(ids.begin(), jit_ntidx.get_id() );
   }
 
@@ -638,7 +646,7 @@ namespace QDP {
   
   
 
-
+#if 0
   void jit_tune( JitFunction& function , int th_count , QDPCache::KernelArgs_t& args)
   {
     if ( ! function.get_enable_tuning() )
@@ -705,7 +713,7 @@ namespace QDP {
 
 	    JitResult result = gpu_launch_kernel( function,
 						  geom.Nblock_x,geom.Nblock_y,1,
-						  geom.threads_per_block,1,1,
+						  geom.blocksize_x,geom.blocksize_y,1,
 						  0, // shared mem
 						  args );
 	  
@@ -753,6 +761,7 @@ namespace QDP {
     
     free( host_ptr );
   }
+#endif
   
 
 
@@ -774,11 +783,12 @@ namespace QDP {
     function.inc_call_counter();
 
 
+#if 0
     if (  jit_config_get_tuning()  &&  function.get_threads_per_block() == -1  )
       {
 	jit_tune( function , th_count , args );
       }
-
+    
     
     int threads_per_block;
     
@@ -790,20 +800,22 @@ namespace QDP {
       {
 	threads_per_block = function.get_threads_per_block();
       }
+#endif
 
     //QDPIO::cout << "jit_launch using block size = " << threads_per_block << std::endl;
     
-
-    kernel_geom_t geom = getGeom( th_count , threads_per_block );
+    kernel_geom_t geom = getGeom( th_count , jit_config_get_blocksize_x() , jit_config_get_blocksize_y() );
+    
+    QDPIO::cerr << "jit launch, grid=(" << geom.Nblock_x << "," << geom.Nblock_y << ",1), block=(" << geom.blocksize_x << "," << geom.blocksize_y << ",1)\n";
 
     JitResult result = gpu_launch_kernel( function,
 					  geom.Nblock_x,geom.Nblock_y,1,
-					  geom.threads_per_block,1,1,
+					  geom.blocksize_x,geom.blocksize_y,1,
 					  0, // shared mem
 					  args );
 
     if (result != JitResult::JitSuccess) {
-      QDPIO::cerr << "jit launch error, grid=(" << geom.Nblock_x << "," << geom.Nblock_y << "1), block=(" << threads_per_block << ",1,1)\n";
+      QDPIO::cerr << "jit launch error, grid=(" << geom.Nblock_x << "," << geom.Nblock_y << ",1), block=(" << geom.blocksize_x << "," << geom.blocksize_y << ",1)\n";
       QDP_abort(1);
     }
   }
@@ -824,12 +836,12 @@ namespace QDP {
 
     JitResult result = gpu_launch_kernel( function,
 					  geom.Nblock_x,geom.Nblock_y,1,
-					  geom.threads_per_block,1,1,
+					  geom.blocksize_x,geom.blocksize_y,1,
 					  shared,
 					  args );
 
     if (result != JitResult::JitSuccess) {
-      QDPIO::cerr << "jit launch explicit geom error, grid=(" << geom.Nblock_x << "," << geom.Nblock_y << "1), block=(" << geom.threads_per_block << ",1,1)\n";
+      QDPIO::cerr << "jit launch explicit geom error, grid=(" << geom.Nblock_x << "," << geom.Nblock_y << "1), block=(" << geom.blocksize_x << "," << geom.blocksize_x << ",1)\n";
       QDP_abort(1);
     }
   }

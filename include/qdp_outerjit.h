@@ -27,7 +27,9 @@ namespace QDP {
     {
       IndexDomainVector args;
       args.push_back( make_pair( Layout::sitesOnNode() , index ) );
+
       F.setup( llvm_derefParam(base_m) , lay , args );
+
       return F;
     }
 
@@ -35,10 +37,29 @@ namespace QDP {
     {
       IndexDomainVector args;
       args.push_back( make_pair( Layout::sitesOnNode() , index ) );
+
       F.setup( llvm_derefParam(base_m) , lay , args );
+
       return F;
     }
 
+
+    T& elem( JitDeviceLayout lay , IndexDomainVector args )
+    {
+      F.setup( llvm_derefParam(base_m) , lay , args );
+
+      return F;
+    }
+
+    
+    const T& elem( JitDeviceLayout lay , IndexDomainVector args ) const
+    {
+      F.setup( llvm_derefParam(base_m) , lay , args );
+
+      return F;
+    }
+
+    
     void set_base( ParamRef p ) const
     {     
       base_m = p;
@@ -48,7 +69,7 @@ namespace QDP {
     void operator=(const OLatticeJIT& a);
 
     mutable ParamRef base_m;
-    mutable T        F;
+    mutable T F;
   };
 
 

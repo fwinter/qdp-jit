@@ -166,7 +166,7 @@ namespace QDP
     }
 
 
-
+#if 0
     //! The linearized site index for the corresponding lexicographic site
     int linearSiteIndex(int site)
     { 
@@ -174,7 +174,7 @@ namespace QDP
     
       return linearSiteIndex(coord);
     }
-
+#endif
 
 	  
 	  //! check if I/O grid is defined
@@ -222,6 +222,9 @@ namespace QDP
 #if QDP_DEBUG >= 2
       QDP_info("Create default subsets");
 #endif
+      // Set vnode default
+      setDefaultVirtualNodeGeom();
+
       // Default set and subsets
       initDefaultSets();
 
@@ -383,16 +386,14 @@ namespace QDP
   }
 
 
-//-----------------------------------------------------------------------------
-#if QDP_USE_LEXICO_LAYOUT == 1
 
-#warning "Using a lexicographic layout"
+
 
   namespace Layout
   {
     //! The linearized site index for the corresponding coordinate
     /*! This layout is a simple lexicographic lattice ordering */
-    int linearSiteIndex(const multi1d<int>& coord)
+    int linearSiteIndex_lexico(const multi1d<int>& coord)
     {
       multi1d<int> tmp_coord(Nd);
 
@@ -405,7 +406,7 @@ namespace QDP
 
     //! The node number for the corresponding lattice coordinate
     /*! This layout is a simple lexicographic lattice ordering */
-    int nodeNumber(const multi1d<int>& coord)
+    int nodeNumber_lexico(const multi1d<int>& coord)
     {
       multi1d<int> tmp_coord(Nd);
 
@@ -418,7 +419,7 @@ namespace QDP
 
     //! Returns the lattice site for some input node and linear index
     /*! This layout is a simple lexicographic lattice ordering */
-    multi1d<int> siteCoords(int node, int linear)
+    multi1d<int> siteCoords_lexico(int node, int linear)
     {
       multi1d<int> coord = getLogicalCoordFrom(node);
 
@@ -435,7 +436,7 @@ namespace QDP
 
     //! Return the smallest lattice size per node allowed
     /*! This layout is a simple lexicographic lattice ordering */
-    multi1d<int> minimalLayoutMapping()
+    multi1d<int> minimalLayoutMapping_lexico()
     {
       multi1d<int> dim(Nd);
       dim = 1;
@@ -444,17 +445,14 @@ namespace QDP
     }
   }
 
-//-----------------------------------------------------------------------------
 
-#elif QDP_USE_CB2_LAYOUT == 1
 
-#warning "Using a 2 checkerboard (red/black) layout"
 
   namespace Layout
   {
     //! The linearized site index for the corresponding coordinate
     /*! This layout is appropriate for a 2 checkerboard (red/black) lattice */
-    int linearSiteIndex(const multi1d<int>& coord)
+    int linearSiteIndex_cb2(const multi1d<int>& coord)
     {
       int subgrid_vol_cb = Layout::sitesOnNode() >> 1;
       multi1d<int> subgrid_cb_nrow = Layout::subgridLattSize();
@@ -480,7 +478,7 @@ namespace QDP
      * but to find the nodeNumber this function resembles a simple lexicographic 
      * layout
      */
-    int nodeNumber(const multi1d<int>& coord)
+    int nodeNumber_cb2(const multi1d<int>& coord)
     {
       multi1d<int> tmp_coord(Nd);
 
@@ -496,7 +494,7 @@ namespace QDP
      * This is the inverse of the nodeNumber and linearSiteIndex functions.
      * The API requires this function to be here.
      */
-    multi1d<int> siteCoords(int node, int linearsite) // ignore node
+    multi1d<int> siteCoords_cb2(int node, int linearsite) // ignore node
     {
       int subgrid_vol_cb = Layout::sitesOnNode() >> 1;
       multi1d<int> subgrid_cb_nrow = Layout::subgridLattSize();
@@ -527,7 +525,7 @@ namespace QDP
 
     //! Return the smallest lattice size per node allowed
     /*! This layout is appropriate for a 2 checkerboard (red/black) lattice */
-    multi1d<int> minimalLayoutMapping()
+    multi1d<int> minimalLayoutMapping_cb2()
     {
       multi1d<int> dim(Nd);
       dim = 1;
@@ -537,17 +535,13 @@ namespace QDP
     }
   }
 
-//-----------------------------------------------------------------------------
 
-#elif QDP_USE_CB3D_LAYOUT == 1
-
-#warning "Using a 3D checkerboard (red/black) layout"
 
   namespace Layout
   {
     //! The linearized site index for the corresponding coordinate
     /*! This layout is appropriate for a 2 checkerboard (red/black) lattice */
-    int linearSiteIndex(const multi1d<int>& coord)
+    int linearSiteIndex_cb3d(const multi1d<int>& coord)
     {
       int subgrid_vol_cb = Layout::sitesOnNode() / 2;
       multi1d<int> subgrid_cb_nrow = Layout::subgridLattSize();
@@ -564,7 +558,7 @@ namespace QDP
       for(int i=1; i < Nd; ++i)
 	subgrid_cb_coord[i] = coord[i] % subgrid_cb_nrow[i];
     
-      return local_site(subgrid_cb_coord, subgrid_cb_nrow) + cb*subgrid_vol_cb;
+      return local_site_cb3d(subgrid_cb_coord, subgrid_cb_nrow) + cb*subgrid_vol_cb;
     }
 
 
@@ -574,7 +568,7 @@ namespace QDP
      * but to find the nodeNumber this function resembles a simple lexicographic 
      * layout
      */
-    int nodeNumber(const multi1d<int>& coord)
+    int nodeNumber_cb3d(const multi1d<int>& coord)
     {
       multi1d<int> tmp_coord(Nd);
 
@@ -590,7 +584,7 @@ namespace QDP
      * This is the inverse of the nodeNumber and linearSiteIndex functions.
      * The API requires this function to be here.
      */
-    multi1d<int> siteCoords(int node, int linearsite) // ignore node
+    multi1d<int> siteCoords_cb3d(int node, int linearsite) // ignore node
     {
       int subgrid_vol_cb = Layout::sitesOnNode() / 2;
       multi1d<int> subgrid_cb_nrow = Layout::subgridLattSize();
@@ -602,7 +596,7 @@ namespace QDP
       coord *= Layout::subgridLattSize();
     
       int cb = linearsite / subgrid_vol_cb;
-      multi1d<int> tmp_coord = crtesn(linearsite % subgrid_vol_cb, subgrid_cb_nrow);
+      multi1d<int> tmp_coord = crtesn_cb3d(linearsite % subgrid_vol_cb, subgrid_cb_nrow);
 
       
 
@@ -628,7 +622,7 @@ namespace QDP
 
     //! Return the smallest lattice size per node allowed
     /*! This layout is appropriate for a 2 checkerboard (red/black) lattice */
-    multi1d<int> minimalLayoutMapping()
+    multi1d<int> minimalLayoutMapping_cb3d()
     {
       multi1d<int> dim(Nd);
       multi1d<int> lsize=Layout::lattSize(); // Full lattice size;
@@ -640,19 +634,12 @@ namespace QDP
   }
 
 
-//-----------------------------------------------------------------------------
-
-#elif QDP_USE_CB32_LAYOUT == 1
-
-#warning "Using a 32 checkerboard layout"
-
-#error "THIS BIT STILL UNDER CONSTRUCTION"
 
   namespace Layout
   {
     //! The linearized site index for the corresponding coordinate
     /*! This layout is appropriate for a 32-style checkerboard lattice */
-    int linearSiteIndex(const multi1d<int>& coord)
+    int linearSiteIndex_cb32(const multi1d<int>& coord)
     {
       int subgrid_vol_cb = Layout::sitesOnNode() >> (Nd+1);
       multi1d<int> subgrid_cb_nrow = Layout::subgridLattSize();
@@ -687,7 +674,7 @@ namespace QDP
      * but to find the nodeNumber this function resembles a simple lexicographic 
      * layout
      */
-    int nodeNumber(const multi1d<int>& coord)
+    int nodeNumber_cb32(const multi1d<int>& coord)
     {
       multi1d<int> tmp_coord(Nd);
 
@@ -703,7 +690,7 @@ namespace QDP
      * This is the inverse of the nodeNumber and linearSiteIndex functions.
      * The API requires this function to be here.
      */
-    multi1d<int> siteCoords(int node, int linearsite) // ignore node
+    multi1d<int> siteCoords_cb32(int node, int linearsite) // ignore node
     {
       int subgrid_vol_cb = Layout::sitesOnNode() >> (Nd+1);
       multi1d<int> subgrid_cb_nrow = Layout::subgridLattSize();
@@ -740,7 +727,7 @@ namespace QDP
 
     //! Return the smallest lattice size per node allowed
     /*! This layout is appropriate for a 32-style checkerboard lattice */
-    multi1d<int> minimalLayoutMapping()
+    multi1d<int> minimalLayoutMapping_cb32()
     {
       multi1d<int> dim(Nd);
 
@@ -752,13 +739,135 @@ namespace QDP
     }
   }
 
-#else
-
-#error "no appropriate layout defined"
-
-#endif
-
-//-----------------------------------------------------------------------------
 
 
-} // namespace QDP;
+
+
+
+  namespace Layout
+  {
+    int linearSiteIndex_vnode(const multi1d<int>& coord)
+    {
+      multi1d<int> local_coord(Nd);
+      multi1d<int> vnode_coord(Nd);
+      multi1d<int> vnode_site_coord(Nd);
+
+      for(int i=0; i < coord.size(); ++i)
+	local_coord[i] = coord[i] % Layout::subgridLattSize()[i];
+
+      for(int i=0; i < coord.size(); ++i)
+	vnode_coord[i] = local_coord[i] / Layout::virtualNodeLattSize()[i];
+
+      for(int i=0; i < coord.size(); ++i)
+	vnode_site_coord[i] = local_coord[i] % Layout::virtualNodeLattSize()[i];
+    
+      int inner_vnode = local_site(vnode_coord, Layout::virtualNodeGeom());
+
+      int outer_vnode = local_site(vnode_site_coord, Layout::virtualNodeLattSize());
+
+      return outer_vnode * Layout::virtualNodeNumber() + inner_vnode;
+    }
+
+
+    multi1d<int> siteCoords_vnode(int node, int linear)
+    {
+      multi1d<int> coord = Layout::getLogicalCoordFrom(node);
+
+      coord *= Layout::subgridLattSize();
+    
+      int outer_vnode  = linear / Layout::virtualNodeNumber();
+      int inner_vnode  = linear % Layout::virtualNodeNumber();
+
+      multi1d<int> vnode_coord(Nd);
+      multi1d<int> vnode_site_coord(Nd);
+
+      vnode_coord = crtesn( inner_vnode , Layout::virtualNodeGeom() );
+
+      vnode_site_coord = crtesn( outer_vnode , Layout::virtualNodeLattSize() );
+
+      coord += vnode_coord * Layout::virtualNodeLattSize();
+  
+      coord += vnode_site_coord;
+  
+      return coord;
+    }
+
+
+
+    multi1d<int> minimalLayoutMapping_vnode()
+    {
+      multi1d<int> dim(Nd);
+      dim = 1;
+      dim[0] = 2;
+
+      return dim;
+    }
+
+
+    int nodeNumber_vnode(const multi1d<int>& coord)
+    {
+      multi1d<int> tmp_coord(Nd);
+
+      for(int i=0; i < coord.size(); ++i)
+	tmp_coord[i] = coord[i] / Layout::subgridLattSize()[i];
+    
+      return Layout::getNodeNumberFrom(tmp_coord);
+    }
+
+  } // Layout vnode
+
+
+  
+
+  namespace Layout
+  {
+    int linearSiteIndex(const multi1d<int>& coord)
+    {
+      switch (jit_config_get_layout()) {
+      case JitLayout::lexico: return Layout::linearSiteIndex_lexico(coord);
+      case JitLayout::cb2:    return Layout::linearSiteIndex_cb2(coord);
+      case JitLayout::cb3d:   return Layout::linearSiteIndex_cb3d(coord);
+      case JitLayout::cb32:   return Layout::linearSiteIndex_cb32(coord);
+      case JitLayout::vnode:  return Layout::linearSiteIndex_vnode(coord);
+      }
+    }
+
+    int nodeNumber(const multi1d<int>& coord)
+    {
+      switch (jit_config_get_layout()) {
+      case JitLayout::lexico: return Layout::nodeNumber_lexico(coord);
+      case JitLayout::cb2:    return Layout::nodeNumber_cb2(coord);
+      case JitLayout::cb3d:   return Layout::nodeNumber_cb3d(coord);
+      case JitLayout::cb32:   return Layout::nodeNumber_cb32(coord);
+      case JitLayout::vnode:  return Layout::nodeNumber_vnode(coord);
+      }
+    }
+
+    multi1d<int> siteCoords(int node, int linear)
+    {
+      switch (jit_config_get_layout()) {
+      case JitLayout::lexico: return Layout::siteCoords_lexico(node,linear);
+      case JitLayout::cb2:    return Layout::siteCoords_cb2(node,linear);
+      case JitLayout::cb3d:   return Layout::siteCoords_cb3d(node,linear);
+      case JitLayout::cb32:   return Layout::siteCoords_cb32(node,linear);
+      case JitLayout::vnode:  return Layout::siteCoords_vnode(node,linear);
+      }
+    }
+  
+    multi1d<int> minimalLayoutMapping()
+    {
+      switch (jit_config_get_layout()) {
+      case JitLayout::lexico: return Layout::minimalLayoutMapping_lexico();
+      case JitLayout::cb2:    return Layout::minimalLayoutMapping_cb2();
+      case JitLayout::cb3d:   return Layout::minimalLayoutMapping_cb3d();
+      case JitLayout::cb32:   return Layout::minimalLayoutMapping_cb32();
+      case JitLayout::vnode:  return Layout::minimalLayoutMapping_vnode();
+      }
+    }
+  }  
+
+  
+    //-----------------------------------------------------------------------------
+
+
+  } // namespace QDP;

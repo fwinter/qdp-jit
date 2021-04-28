@@ -3,6 +3,18 @@
 
 namespace QDP
 {
+  enum JitLayout {lexico,cb2,cb3d,cb32,vnode};
+  JitLayout jit_config_get_layout();
+  void jit_config_set_layout( JitLayout l );
+
+  int jit_config_gpu_warpsize();
+
+  int jit_config_get_blocksize_x();
+  void jit_config_set_blocksize_x(int n);
+
+  int jit_config_get_blocksize_y();
+  void jit_config_set_blocksize_y(int n);
+
   int jit_config_get_oscalar_ringbuffer_size();
   void jit_config_set_oscalar_ringbuffer_size(int n);
 

@@ -12,8 +12,115 @@
 
 namespace QDP {
 
+namespace
+{
+  template<class T>
+  inline
+  StandardOutputStream& operator<<(StandardOutputStream& s, const multi1d<T>& d)
+  {
+    for(int i=0; i < d.size(); ++i)
+      s << d[i] << " ";
+    return s;
+  }
+}
+
+  
 namespace Layout
 {
+  multi1d<int> m_virtual_node_geom;
+
+
+  void setDefaultVirtualNodeGeom()
+  {
+    if ( jit_config_get_layout() != JitLayout::vnode )
+      {
+	QDPIO::cout << "setDefaultVirtualNodeGeom not vnode\n";
+	return;
+      }
+
+    if (m_virtual_node_geom.size() != Nd)
+      {
+	QDPIO::cout << "Virtual node setup (based on default warpsize of " << jit_config_gpu_warpsize() << "):" << std::endl;
+	    
+	multi1d<int> n(Nd);
+	n = 1;
+	int rem = jit_config_gpu_warpsize();
+	int pos = Nd-1;
+
+	while( rem > 1 )
+	  {
+	    n[pos--] *= 2;
+
+	    if ( pos == -1 )
+	      pos = Nd-1;
+	
+	    rem >>= 1;
+	  }
+
+	m_virtual_node_geom = n;
+      }
+    else
+      {
+	QDPIO::cout << "Virtual node setup (user request):" << std::endl;
+      }
+
+    QDPIO::cout << "  vnode geometry = " << Layout::virtualNodeGeom() << std::endl;
+    QDPIO::cout << "  vnode local size = " << Layout::virtualNodeLattSize() << std::endl;
+    QDPIO::cout << "  sites within vnode = " << Layout::virtualNodeSites() << std::endl;
+    QDPIO::cout << "  number of vnodes = " << Layout::virtualNodeNumber() << std::endl;
+  
+#if 0  
+    QDPIO::cout << "using default vnode geometry of ";
+    for(int i=0; i < Nd; i++) 
+      QDPIO::cout << n[i] << " ";
+    QDPIO::cout << std::endl;
+#endif
+
+    
+  }
+  
+  
+  void setVirtualNodeGeom(const multi1d<int>& g)
+  {
+    if (g.size() != Nd)
+      {
+	std::cerr << "virtual node geometry not " << Nd << " dimensional." << std::endl;
+	QDP_abort(1);
+      }
+    m_virtual_node_geom = g;
+  }
+  
+  multi1d<int> virtualNodeGeom()
+  {
+    return m_virtual_node_geom;
+  }
+  
+  multi1d<int> virtualNodeLattSize()
+  {
+    multi1d<int> tmp(Nd);
+    for( int i = 0 ; i < tmp.size() ; ++i )
+      tmp[i] = Layout::subgridLattSize()[i] / virtualNodeGeom()[i];
+    return tmp;
+  }
+
+  int virtualNodeSites()
+  {
+    int tmp = virtualNodeLattSize()[0];
+    for( int i = 1 ; i < virtualNodeLattSize().size() ; ++i )
+      tmp *= virtualNodeLattSize()[i];
+    return tmp;
+  }
+
+  int virtualNodeNumber()
+  {
+    int tmp = virtualNodeGeom()[0];
+    for( int i = 1 ; i < virtualNodeGeom().size() ; ++i )
+      tmp *= virtualNodeGeom()[i];
+    return tmp;
+  }
+
+
+  
   //! Returns the logical node coordinates for the corresponding lattice coordinate
   multi1d<int> nodeCoord(const multi1d<int>& coord) 
   {
@@ -54,9 +161,8 @@ namespace Layout
 }
 
 
-#if QDP_USE_CB3D_LAYOUT == 1
 
-  multi1d<int> crtesn(int ipos, const multi1d<int>& latt_size)
+  multi1d<int> crtesn_cb3d(int ipos, const multi1d<int>& latt_size)
   {
     multi1d<int> coord(latt_size.size());
     int Ndim=latt_size.size() - 1; // Last elem latt size
@@ -87,7 +193,7 @@ namespace Layout
  * Nothing specific about the actual lattice size, can be used for 
  * any kind of latt size 
  */
-int local_site(const multi1d<int>& coord, const multi1d<int>& latt_size)
+int local_site_cb3d(const multi1d<int>& coord, const multi1d<int>& latt_size)
 {
   int order = 0;
 
@@ -107,9 +213,7 @@ int local_site(const multi1d<int>& coord, const multi1d<int>& latt_size)
 }
 
 
-#else
-  // Usual lattice decomposition -- x fastest, t slowest
-  //! Decompose a lexicographic site into coordinates
+
 multi1d<int> crtesn(int ipos, const multi1d<int>& latt_size)
 {
   multi1d<int> coord(latt_size.size());
@@ -150,7 +254,7 @@ int local_site(const multi1d<int>& coord, const multi1d<int>& latt_size)
   return order;
 }
 
-#endif
+
 
 
 

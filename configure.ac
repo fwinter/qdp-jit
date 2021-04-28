@@ -341,35 +341,6 @@ double)
 	;;
 esac
 
-AC_ARG_ENABLE(layout,
-  AC_HELP_STRING([--enable-layout=lexico|cb2|cb3d|cb32],
-                 [Sets the layout. lexico=lexicographic, cb2=even odd checkerboard, cb3d=even odd checkerboard in 3d, cb32=hypercubic checkerboard. (default is cb2)]),
-  [ ac_layout=${enableval} ],
-  [ ac_layout="cb2" ]
-)
-
-case "${ac_layout}" in
-lexico|lexicographic)
-	AC_SUBST(CONFIG_LAYOUT,[lexicographic])
-	AC_DEFINE(QDP_USE_LEXICO_LAYOUT, [1], [Use lexicographic layout])
-	;;
-cb2|checkerboard)
-	AC_SUBST(CONFIG_LAYOUT,[cb2])
-	AC_DEFINE(QDP_USE_CB2_LAYOUT, [1], [Use checkerboarded layout])
-	;;
-cb3d|checkerboard-3d)
-	AC_SUBST(CONFIG_LAYOUT,[cb3d])
-	AC_DEFINE(QDP_USE_CB3D_LAYOUT,[1], [Use 3d checkerboarded layout])
-	;;
-cb32|hyper|hypercube)
-	AC_SUBST(CONFIG_LAYOUT,[cb32])
-	AC_DEFINE(QDP_USE_CB32_LAYOUT, [1], [Use hypercube checkerboard layout])
-	;;
-*)
-	AC_MSG_ERROR([Unsupported Layout. Check --enable-layout])
-	;;
-esac
-AC_MSG_NOTICE([Configuring QDP++ with ${CONFIG_LAYOUT} layout])
 
 dnl George T. Fleming 03/03/2003
 dnl This is a total reworking of Balint Joo's implementation

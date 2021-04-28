@@ -103,17 +103,21 @@ namespace QDP {
     std::map< jitprec , std::map< std::string , int > > math_declarations;
   }
 
-  namespace AMDspecific {
-    ParamRef __threads_per_group;
+  namespace AMDspecific
+  {
+    ParamRef __blocksize_x;
+    ParamRef __blocksize_y;
     ParamRef __grid_size_x;
   }
 
 
-  namespace llvm_counters {
+  namespace llvm_counters
+  {
     int label_counter;
   }
 
-  namespace llvm_debug {
+  namespace llvm_debug
+  {
     bool debug_func_build      = false;
     bool debug_func_dump       = false;
     bool debug_func_write      = false;
@@ -803,8 +807,9 @@ namespace QDP {
     function_created = false;
 
 #ifdef QDP_BACKEND_ROCM
-    AMDspecific::__threads_per_group = llvm_add_param<int>();
-    AMDspecific::__grid_size_x       = llvm_add_param<int>();
+    AMDspecific::__blocksize_x = llvm_add_param<int>();
+    AMDspecific::__blocksize_y = llvm_add_param<int>();
+    AMDspecific::__grid_size_x = llvm_add_param<int>();
 #endif
   }
 
@@ -1388,18 +1393,18 @@ namespace QDP {
 
   
 #ifdef QDP_BACKEND_ROCM
-  llvm::Value * llvm_call_special_workitem_x() {     return llvm_special("llvm.amdgcn.workitem.id.x"); }
-  llvm::Value * llvm_call_special_workgroup_x() {     return llvm_special("llvm.amdgcn.workgroup.id.x"); }
-  llvm::Value * llvm_call_special_workgroup_y() {     return llvm_special("llvm.amdgcn.workgroup.id.y"); }
-
-  llvm::Value * llvm_call_special_tidx() { return llvm_call_special_workitem_x(); }
-  llvm::Value * llvm_call_special_ntidx() { return llvm_derefParam( AMDspecific::__threads_per_group ); }
-  llvm::Value * llvm_call_special_ctaidx() { return llvm_call_special_workgroup_x(); }
+  llvm::Value * llvm_call_special_tidx() { return llvm_special("llvm.amdgcn.workitem.id.x"); }
+  llvm::Value * llvm_call_special_ntidx() { return llvm_derefParam( AMDspecific::__blocksize_x ); }
+  llvm::Value * llvm_call_special_tidy() { return llvm_special("llvm.amdgcn.workitem.id.y"); }
+  llvm::Value * llvm_call_special_ntidy() { return llvm_derefParam( AMDspecific::__blocksize_y ); }
+  llvm::Value * llvm_call_special_ctaidx() { return llvm_special("llvm.amdgcn.workgroup.id.x"); }
   llvm::Value * llvm_call_special_nctaidx() { return llvm_derefParam( AMDspecific::__grid_size_x ); }
-  llvm::Value * llvm_call_special_ctaidy() { return llvm_call_special_workgroup_y();  }
+  llvm::Value * llvm_call_special_ctaidy() { return llvm_special("llvm.amdgcn.workgroup.id.y"); }
 #else
   llvm::Value * llvm_call_special_tidx() { return llvm_special("llvm.nvvm.read.ptx.sreg.tid.x"); }
   llvm::Value * llvm_call_special_ntidx() { return llvm_special("llvm.nvvm.read.ptx.sreg.ntid.x"); }
+  llvm::Value * llvm_call_special_tidy() { return llvm_special("llvm.nvvm.read.ptx.sreg.tid.y"); }
+  llvm::Value * llvm_call_special_ntidy() { return llvm_special("llvm.nvvm.read.ptx.sreg.ntid.y"); }
   llvm::Value * llvm_call_special_ctaidx() { return llvm_special("llvm.nvvm.read.ptx.sreg.ctaid.x"); }
   llvm::Value * llvm_call_special_nctaidx() { return llvm_special("llvm.nvvm.read.ptx.sreg.nctaid.x"); }
   llvm::Value * llvm_call_special_ctaidy() { return llvm_special("llvm.nvvm.read.ptx.sreg.ctaid.y"); }
@@ -1408,15 +1413,26 @@ namespace QDP {
   
   
 
-  llvm::Value * llvm_thread_idx() { 
+  llvm::Value * llvm_thread_idx() {
     llvm::Value * tidx = llvm_call_special_tidx();
     llvm::Value * ntidx = llvm_call_special_ntidx();
+    llvm::Value * tidy = llvm_call_special_tidy();
+    llvm::Value * ntidy = llvm_call_special_ntidy();
     llvm::Value * ctaidx = llvm_call_special_ctaidx();
     llvm::Value * ctaidy = llvm_call_special_ctaidy();
     llvm::Value * nctaidx = llvm_call_special_nctaidx();
-    return llvm_add( llvm_mul( llvm_add( llvm_mul( ctaidy , nctaidx ) , ctaidx ) , ntidx ) , tidx );
+    return llvm_add( llvm_mul( llvm_add( llvm_mul( llvm_add( llvm_mul( ctaidy , nctaidx ) , ctaidx ) , ntidy ) , tidy ) , ntidx ) , tidx );
   }
-  
+
+
+  llvm::Value * llvm_block_idx() {
+    llvm::Value * ctaidx = llvm_call_special_ctaidx();
+    llvm::Value * ctaidy = llvm_call_special_ctaidy();
+    llvm::Value * nctaidx = llvm_call_special_nctaidx();
+    return llvm_add( llvm_mul( ctaidy , nctaidx ) , ctaidx );
+  }
+
+
 
 
   void addKernelMetadata(llvm::Function *F) {

@@ -832,18 +832,20 @@ namespace QDP
 #ifdef QDP_BACKEND_ROCM
     if ( for_kernel )
       {
-	if ( ids.size() < 2 )
+	if ( ids.size() < 3 )
 	  {
-	    QDPIO::cerr << "get_kernel_args: Size less than 2\n";
+	    QDPIO::cerr << "get_kernel_args: Size less than 3\n";
 	    QDP_abort(1);
 	  }
 	Entry& e0 = vecEntry[ ids[0] ];
 	Entry& e1 = vecEntry[ ids[1] ];
+	Entry& e2 = vecEntry[ ids[2] ];
 
 	if ( ( e0.param_type != JitParamType::int_ ) ||
-	     ( e1.param_type != JitParamType::int_ ) )
+	     ( e1.param_type != JitParamType::int_ ) ||
+	     ( e2.param_type != JitParamType::int_ ) )
 	  {
-	    QDPIO::cerr << "get_kernel_args: For AMD expected for two parameters being integers\n";
+	    QDPIO::cerr << "get_kernel_args: For AMD, expect 3 integers parameters.\n";
 	    QDP_abort(1);
 	  }
       }

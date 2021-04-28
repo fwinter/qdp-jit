@@ -276,11 +276,17 @@ namespace QDP {
 	    sscanf((*argv)[++i],"%u",&val);
 	    jit_config_set_pool_alignment( val );
 	  }
-	else if (strcmp((*argv)[i], "-blocksize")==0)
+	else if (strcmp((*argv)[i], "-blocksize_x")==0)
 	  {
 	    unsigned val;
 	    sscanf((*argv)[++i],"%u",&val);
-	    jit_config_set_threads_per_block( val );
+	    jit_config_set_blocksize_x(val);
+	  }
+	else if (strcmp((*argv)[i], "-blocksize_y")==0)
+	  {
+	    unsigned val;
+	    sscanf((*argv)[++i],"%u",&val);
+	    jit_config_set_blocksize_y(val);
 	  }
 	else if (strcmp((*argv)[i], "-stats")==0) 
 	  {
@@ -432,6 +438,22 @@ namespace QDP {
 	    sscanf((*argv)[++i], "%s", &tmp[0]);
 	    llvm_set_ptxdb(tmp);
 	  }
+	else if (strcmp((*argv)[i], "-layout")==0) 
+	  {
+	    char tmp[1024];
+	    sscanf((*argv)[++i], "%s", &tmp[0]);
+	    bool found=false;
+	    if (!strcmp(tmp,"lexico")) {jit_config_set_layout( JitLayout::lexico ); found=true;}
+	    if (!strcmp(tmp,"cb2"))    {jit_config_set_layout( JitLayout::cb2 );    found=true;}
+	    if (!strcmp(tmp,"vnode"))  {jit_config_set_layout( JitLayout::vnode );  found=true;}
+	    if (!found)
+	      {
+		std::cerr << "Specified layout not found: " << tmp << std::endl;
+		std::cerr << "Supported: lexico, cb2, vnode" << std::endl;
+		QDP_abort(1);
+	      }
+	    jit_config_delayed_message("Using layout = " + std::string(tmp) );
+	  }
 	else if (strcmp((*argv)[i], "-defaultgpu")==0) 
 	  {
 	    int ngpu;
@@ -458,6 +480,17 @@ namespace QDP {
 		sscanf((*argv)[++i], "%d", &uu);
 		logical_iogeom[j] = uu;
 	      }
+	  }
+	else if (strcmp((*argv)[i], "-vnodegeom")==0) 
+	  {
+	    multi1d<int> nrow(Nd);
+	    for(int j=0; j < Nd; j++) 
+	      {
+		int uu;
+		sscanf((*argv)[++i], "%d", &uu);
+		nrow[j] = uu;
+	      }
+	    Layout::setVirtualNodeGeom(nrow);
 	  }
 	else if (strcmp((*argv)[i], "-lat")==0) 
 	  {

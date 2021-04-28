@@ -947,10 +947,6 @@ namespace QDP {
 
 
 
-
-
-
-
   kernel_geom_t getGeom(int numSites , int threadsPerBlock)
   {
     kernel_geom_t geom_host;
@@ -963,14 +959,35 @@ namespace QDP {
     int64_t P = threadsPerBlock;
     int64_t Nblock_x = (num_sites + P-1) / P;
 
-    geom_host.threads_per_block = threadsPerBlock;
+    geom_host.blocksize_x = threadsPerBlock;
+    geom_host.blocksize_y = 1;
     geom_host.Nblock_x = Nblock_x;
     geom_host.Nblock_y = Nblock_y;
     return geom_host;
   }
 
 
+  kernel_geom_t getGeom( int _num_sites , int _blocksize_x , int _blocksize_y )
+  {
+    kernel_geom_t geom_host;
 
+    int64_t num_sites = _num_sites;
+    int64_t blocksize_x = _blocksize_x;
+    int64_t blocksize_y = _blocksize_y;
+    
+    int64_t M = gpu_getMaxGridX() * ( blocksize_x * blocksize_y );
+    int64_t Nblock_y = ( num_sites + M - 1 ) / M;
+
+    int64_t P = ( blocksize_x * blocksize_y );
+    int64_t Nblock_x = ( num_sites + P - 1 ) / P;
+
+    geom_host.blocksize_x = blocksize_x;
+    geom_host.blocksize_y = blocksize_y;
+    geom_host.Nblock_x = Nblock_x;
+    geom_host.Nblock_y = Nblock_y;
+
+    return geom_host;
+  }
 
   
 

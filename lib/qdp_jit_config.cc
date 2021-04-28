@@ -5,6 +5,10 @@ namespace QDP
 {
   namespace
   {
+    // Datalayout
+    JitLayout jit_layout = JitLayout::cb2;
+    int       gpu_warpsize = 32;
+    
     // Memory Pool
     size_t thread_stack = 512 * sizeof(REAL);
     bool use_total_pool_size = false;
@@ -22,17 +26,23 @@ namespace QDP
 
     bool verbose_output = false;
 
+    
     // Kernel Launch & Tuning
     //
     bool tuning = false;
     bool tuning_verbose = false;
-    int threads_per_block = 128;        // default value
     int threads_per_block_min = 8;
     int threads_per_block_max = 256;
     int threads_per_block_step = 8;
     int threads_per_block_loops = 1000; // Number of loops to measure (after dry run of 5)
     std::string tuning_file = "qdp-jit.tuning.dat";
 
+    // Datalayout
+    //
+    int blocksize_x = 128;
+    int blocksize_y = 1;
+
+    
     // Delay output when QDPIO is not ready yet
     std::vector<std::string> delayed_output;
 
@@ -55,6 +65,24 @@ namespace QDP
   }
 
 
+  int jit_config_gpu_warpsize()
+  {
+    return gpu_warpsize;
+  }
+
+  
+  JitLayout jit_config_get_layout()
+  {
+    return jit_layout;
+  }
+
+  void jit_config_set_layout( JitLayout l )
+  {
+    jit_layout = l;
+  }
+  
+  
+
 #ifdef QDP_BACKEND_CUDA
   int  jit_config_get_CUDA_FTZ()   { return CUDA_FTZ; }
   void jit_config_set_CUDA_FTZ(int i)   { CUDA_FTZ = i; }
@@ -76,8 +104,10 @@ namespace QDP
   
   void jit_config_print()
   {
+    QDPIO::cout << "Kernel launch config:\n";
+    QDPIO::cout << "  blocksize_x                         : " << blocksize_x       << "\n";
+    QDPIO::cout << "  blocksize_y                         : " << blocksize_y       << "\n";
     QDPIO::cout << "Memory pool config:\n";
-    QDPIO::cout << "  threads per block                   : " << threads_per_block << "\n";
     if (use_total_pool_size)
     QDPIO::cout << "  memory pool size (user request)     : " << pool_size/1024/1024 << " MB\n";
     else
@@ -106,6 +136,13 @@ namespace QDP
 
   int jit_config_get_oscalar_ringbuffer_size() { return oscalar_ringbuffer_size; }
   void jit_config_set_oscalar_ringbuffer_size(int n) { oscalar_ringbuffer_size = n; }
+
+
+  int jit_config_get_blocksize_x() { return blocksize_x; }
+  void jit_config_set_blocksize_x(int n) { blocksize_x = n; }
+
+  int jit_config_get_blocksize_y() { return blocksize_y; }
+  void jit_config_set_blocksize_y(int n) { blocksize_y = n; }
 
   
 #ifdef QDP_BACKEND_ROCM
@@ -156,16 +193,6 @@ namespace QDP
   }
   
   
-  void jit_config_set_threads_per_block( int t )
-  {
-    threads_per_block = t;
-  }
-
-  int jit_config_get_threads_per_block()
-  {
-    return threads_per_block;
-  }
-
 
 
   void jit_config_set_threads_per_block_min( int t )  {    threads_per_block_min = t;  }
