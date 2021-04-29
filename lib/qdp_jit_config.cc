@@ -6,8 +6,10 @@ namespace QDP
   namespace
   {
     // Datalayout
-    JitLayout jit_layout = JitLayout::cb2;
-    int       gpu_warpsize = 32;
+    JitLayout   jit_layout = JitLayout::cb2;
+    int         gpu_warpsize = 32;
+    std::string nesting_order = "XYBSCR";
+    std::string loop_order    = "RCSBYX";
     
     // Memory Pool
     size_t thread_stack = 512 * sizeof(REAL);
@@ -62,6 +64,35 @@ namespace QDP
     bool deep_log_create = false;
     std::string deep_log_name = "qdp-jit-log.dat";
 #endif
+  }
+
+
+  std::string jit_config_get_nesting_order()
+  {
+    return nesting_order;
+  }
+
+  std::string jit_config_get_loop_order()
+  {
+    return loop_order;
+  }
+
+  void jit_config_set_loop_order(std::string s)
+  {
+    if (s.size() != nesting_order.size())
+      {
+	std::cerr << "loop order string must be a permutation of the characters: " << jit_config_get_nesting_order() << std::endl;
+	QDP_abort(1);
+      }
+    for ( auto p : {'X','Y','B','S','C','R'} )
+      {
+	if (-1 == s.find(p))
+	  {
+	    std::cerr << "loop order string must be a permutation of the characters: " << jit_config_get_nesting_order() << std::endl;
+	    QDP_abort(1);
+	  }
+      }
+    loop_order = s;
   }
 
 

@@ -438,6 +438,12 @@ namespace QDP {
 	    sscanf((*argv)[++i], "%s", &tmp[0]);
 	    llvm_set_ptxdb(tmp);
 	  }
+	else if (strcmp((*argv)[i], "-looporder")==0)
+	  {
+	    char tmp[1024];
+	    sscanf((*argv)[++i], "%s", &tmp[0]);
+	    jit_config_set_loop_order(tmp);
+	  }
 	else if (strcmp((*argv)[i], "-layout")==0) 
 	  {
 	    char tmp[1024];

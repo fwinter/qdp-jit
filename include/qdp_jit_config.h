@@ -7,6 +7,10 @@ namespace QDP
   JitLayout jit_config_get_layout();
   void jit_config_set_layout( JitLayout l );
 
+  std::string jit_config_get_nesting_order();
+  std::string jit_config_get_loop_order();
+  void jit_config_set_loop_order(std::string s);
+  
   int jit_config_gpu_warpsize();
 
   int jit_config_get_blocksize_x();

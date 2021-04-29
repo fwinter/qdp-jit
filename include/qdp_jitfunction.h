@@ -223,9 +223,9 @@ function_build(JitFunction& function, const DynKey& key, OLattice<T>& dest, cons
 	  idv.push_back( make_pair( Layout::sitesOnNode() / ( jit_config_get_blocksize_y() * jit_config_get_blocksize_x() ) , llvm_block_idx() ) );
 	  idv.setAdd( r_start );
 	  
-	  //llvm::Value* r_idx_thread = llvm_thread_idx();
+	  llvm::Value* r_idx_thread = llvm_thread_idx();
 
-	  //llvm_cond_exit( llvm_ge( r_idx_thread , r_th_count ) );
+	  llvm_cond_exit( llvm_ge( r_idx_thread , r_th_count ) );
 
 	  op_jit( dest_jit.elem( JitDeviceLayout::Coalesced , idv ), 
 		  forEach(rhs_view, ViewLeaf( JitDeviceLayout::Coalesced , idv ), OpCombine()));

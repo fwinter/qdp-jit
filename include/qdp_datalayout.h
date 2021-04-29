@@ -13,6 +13,21 @@ namespace QDP {
     bool has_add = false;
     llvm::Value *start_m;
   public:
+#if 1
+    IndexDomainVector(): std::vector<IndexDomain>() {}
+    
+    IndexDomainVector(const IndexDomainVector& rhs): std::vector<IndexDomain>(rhs), has_add(rhs.has_add), start_m(rhs.start_m) {}
+    IndexDomainVector& operator=(const IndexDomainVector& rhs)
+    {
+      std::vector<IndexDomain>::operator=(rhs);
+      
+      has_add = rhs.has_add;
+      start_m = rhs.start_m;
+      
+      return *this;
+    }
+#endif
+    
     bool hasAdd() const
     {
       return has_add;
