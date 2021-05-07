@@ -758,6 +758,7 @@ namespace QDP {
 
   void jit_launch(JitFunction& function,int th_count,std::vector<QDPCache::ArgKey>& ids)
   {
+#ifndef QDP_BACKEND_SPIRV
     // For ROCm we add the __threads_per_group and 
     // __grid_size_x as parameters to the kernel.
 #ifdef QDP_BACKEND_ROCM
@@ -806,6 +807,7 @@ namespace QDP {
       QDPIO::cerr << "jit launch error, grid=(" << geom.Nblock_x << "," << geom.Nblock_y << "1), block=(" << threads_per_block << ",1,1)\n";
       QDP_abort(1);
     }
+#endif
   }
 
 

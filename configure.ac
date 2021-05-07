@@ -15,7 +15,7 @@ dnl defines...
 AC_CONFIG_HEADERS([include/qdp_config_internal.h])
 
 AC_ARG_WITH(backend,
-  AC_HELP_STRING([--with-backend=(CUDA/ROCM)], [ Specify backend to use (default: CUDA)]),
+  AC_HELP_STRING([--with-backend=(CUDA/ROCM/SPIRV)], [ Specify backend to use (default: CUDA)]),
   [ backend_use="${withval}" ],
   [ backend_use="CUDA" ]
 )
@@ -279,12 +279,21 @@ then
     tmp_gpu_libs="-lcuda"
   fi
 else
-  AC_MSG_NOTICE([Configuring with ROCM installed in = ${rocm_home}])
-  #AC_SUBST(CUDA_LIBS, [-lcuda])
-  AC_DEFINE([QDP_BACKEND_ROCM], [1] , [ROCM] )
-  AC_SUBST(GPU_CXXFLAGS, ["-I${rocm_home}/include"])
-  AC_SUBST(GPU_LDFLAGS, ["-L${rocm_home}/lib -L${rocm_home}/lib64"])
-  tmp_gpu_libs="-lamdhip64"
+  if test "X${backend_use}X" == "XROCMX";
+  then
+    AC_MSG_NOTICE([Configuring with ROCM installed in = ${rocm_home}])
+    #AC_SUBST(CUDA_LIBS, [-lcuda])
+    AC_DEFINE([QDP_BACKEND_ROCM], [1] , [ROCM] )
+    AC_SUBST(GPU_CXXFLAGS, ["-I${rocm_home}/include"])
+    AC_SUBST(GPU_LDFLAGS, ["-L${rocm_home}/lib -L${rocm_home}/lib64"])
+    tmp_gpu_libs="-lamdhip64"
+  else
+    AC_MSG_NOTICE([Configuring with SPIRV])
+    AC_DEFINE([QDP_BACKEND_SPIRV], [1] , [SPIRV] )
+    AC_SUBST(GPU_CXXFLAGS, ["-I${cuda_home}/include"])
+    AC_SUBST(GPU_LDFLAGS, ["-L${cuda_home}/lib64"])
+    tmp_gpu_libs="-lcuda -lpthread"
+  fi
 fi
 
 if test "X${rocm_stats}X" == "XyesX";
@@ -724,6 +733,8 @@ AM_CONDITIONAL(QDP_DEEP_LOG, [test "x${ac_deep_log}x" = "xyesx" ])
 AM_CONDITIONAL(QDP_BACKEND_CUDA, [test "x${backend_use}x" = "xCUDAx" ])
 
 AM_CONDITIONAL(QDP_BACKEND_ROCM, [test "x${backend_use}x" = "xROCMx" ])
+
+AM_CONDITIONAL(QDP_BACKEND_SPIRV, [test "x${backend_use}x" = "xSPIRVx" ])
 
 
 

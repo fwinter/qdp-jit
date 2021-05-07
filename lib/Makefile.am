@@ -35,9 +35,17 @@ libqdp_a_SOURCES = qdp_map.cc qdp_subset.cc qdp_random.cc qdp.cc \
 
 if QDP_BACKEND_CUDA
   libqdp_a_SOURCES += qdp_gpu_cuda.cc
-else
+endif
+
+if QDP_BACKEND_ROCM
   libqdp_a_SOURCES += qdp_gpu_rocm.cc
 endif
+
+if QDP_BACKEND_SPIRV
+  libqdp_a_SOURCES += qdp_gpu_cuda.cc
+endif
+
+
 
 
 if QDP_CUDA_SPECIAL
