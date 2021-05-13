@@ -36,12 +36,12 @@ namespace QDP
     typename QDPSubTypeTrait< typename BinaryReturn<C1,C2,FnLocalInnerProduct>::Type_t >::Type_t ret;
     ret.setSubset( l.subset() );
 
-    static CUfunction function;
+    static JitFunction function;
 
-    if (function == NULL)
-      function = function_localInnerProduct_subtype_type_build(ret, l , r );
+    if (function.empty())
+      function_OP_subtype_type_build<FnLocalInnerProduct>(function, ret, l , r );
 
-    function_localInnerProduct_subtype_type_exec(function, ret, l, r, l.subset() );
+    function_OP_exec<FnLocalInnerProduct>(function, ret, l, r, l.subset() );
     
     return ret;
   }
@@ -58,18 +58,19 @@ namespace QDP
     typename QDPSubTypeTrait< typename BinaryReturn<C1,C2,FnLocalInnerProduct>::Type_t >::Type_t ret;
     ret.setSubset( r.subset() );
 
-    static CUfunction function;
+    static JitFunction function;
 
-    if (function == NULL)
-      function = function_localInnerProduct_type_subtype_build(ret, l , r );
+    if (function.empty())
+      function_OP_type_subtype_build<FnLocalInnerProduct>(function, ret, l , r );
 
-    function_localInnerProduct_type_subtype_exec(function, ret, l, r, r.subset() );
+    function_OP_exec<FnLocalInnerProduct>(function, ret, l, r, r.subset() );
     
     return ret;
   }
 
 
-  
+
+
 
 #if 0
   template<class T1,class C1,class T2,class C2>
@@ -127,6 +128,16 @@ sum( const OSubLattice<T>& s1 )
 
   typename UnaryReturn<OLattice<T>, FnSum>::Type_t  d;
 
+// #if defined(QDP_USE_PROFILING)
+//     static QDPProfile_t prof(d, OpAssign(), FnSum(), s1);
+//     prof.start_time();
+// #endif
+
+  // Register the destination object with the memory cache
+  int d_id = QDP_get_global_cache().registrateOwnHostMem( sizeof(typename UnaryReturn<OLattice<T>, FnSum>::Type_t::SubType_t) , d.getF() , nullptr );
+  
+  zero_rep(d);
+
   typedef typename UnaryReturn<OLattice<T>, FnSum>::Type_t::SubType_t T2;
     
   //QDP_info("sum(lat,subset) dev");
@@ -135,22 +146,24 @@ sum( const OSubLattice<T>& s1 )
 
   unsigned actsize=s1.subset().numSiteTable();
   bool first=true;
-  while (1) {
+  bool allocated=false;
+  while (actsize > 0) {
 
-    unsigned numThreads = DeviceParams::Instance().getMaxBlockX();
-    while ((numThreads*sizeof(T2) > DeviceParams::Instance().getMaxSMem()) || (numThreads > actsize)) {
+    unsigned numThreads = gpu_getMaxBlockX();
+    while ((numThreads*sizeof(T2) > gpu_getMaxSMem()) || (numThreads > (unsigned)actsize)) {
       numThreads >>= 1;
     }
     unsigned numBlocks=(int)ceil(float(actsize)/numThreads);
     
-    if (numBlocks > DeviceParams::Instance().getMaxGridX()) {
-      QDP_error_exit( "sum(Lat,subset) numBlocks(%d) > maxGridX(%d)",numBlocks,(int)DeviceParams::Instance().getMaxGridX());
+    if (numBlocks > gpu_getMaxGridX()) {
+      QDP_error_exit( "sum(SubLat) numBlocks(%d) > maxGridX(%d)",numBlocks,(int)gpu_getMaxGridX());
     }
 
     int shared_mem_usage = numThreads*sizeof(T2);
     //QDP_info("sum(Lat,subset): using %d threads per block, %d blocks, shared mem=%d" , numThreads , numBlocks , shared_mem_usage );
 
     if (first) {
+      allocated=true;
       out_id = QDP_get_global_cache().add( numBlocks*sizeof(T2) , QDPCache::Flags::Empty , QDPCache::Status::undef , NULL , NULL , NULL );
       in_id  = QDP_get_global_cache().add( numBlocks*sizeof(T2) , QDPCache::Flags::Empty , QDPCache::Status::undef , NULL , NULL , NULL );
     }
@@ -161,12 +174,12 @@ sum( const OSubLattice<T>& s1 )
 	  {
 	    qdp_jit_reduce_convert<T,T2,JitDeviceLayout::Scalar>(actsize, numThreads, numBlocks, shared_mem_usage ,  // ok: Scalar
 								 s1.getId(),
-								 d.getId() );
+								 d_id );
 	  }
 	else
 	  {
 	    qdp_jit_reduce<T2>( actsize , numThreads , numBlocks, shared_mem_usage , 
-				in_id , d.getId() );
+				in_id , d_id );
 	  }
       }
     else
@@ -182,8 +195,6 @@ sum( const OSubLattice<T>& s1 )
 	  qdp_jit_reduce<T2>( actsize , numThreads , numBlocks , shared_mem_usage , in_id , out_id );
 	}
       }
-
-    
   
     first =false;
     
@@ -197,10 +208,24 @@ sum( const OSubLattice<T>& s1 )
     out_id = tmp;
   }
 
-  QDP_get_global_cache().signoff( in_id );
-  QDP_get_global_cache().signoff( out_id );
-  
+  if (allocated)
+    {
+      QDP_get_global_cache().signoff( in_id );
+      QDP_get_global_cache().signoff( out_id );
+    }
+
+  // Copy result to host
+  QDP_get_global_cache().assureOnHost(d_id);
+
+  // Global sum
   QDPInternal::globalSum(d);
+
+  // Sign off result
+  QDP_get_global_cache().signoff( d_id );
+
+// #if defined(QDP_USE_PROFILING)
+//     prof.end_time();
+// #endif
 
   return d;
 }

@@ -38,13 +38,6 @@
 #include <qdp_config.h>
 #include "qdp_precision.h"
 
-// GNU specific stuff
-#if defined(__GNUC__)
-// Under g++, enforce using V3 or greater
-#if __GNUC__ < 3
-#error "QDP++ requires g++ 3.0 or higher. This version of the g++ compiler is not supported"
-#endif
-#endif
 
 // Under gcc, set some attributes
 #if defined(__GNUC__)
@@ -82,6 +75,7 @@
 #include <utility>
 #include <memory>
 #include <vector>
+#include <map>
 
 #include <string>
 #include <fstream>
@@ -95,14 +89,14 @@ using std::ostream;
 // END OF YUKKINESS
 
 
-#include "cuda.h"
-#include "qdp_llvm.h"
+#include "qdp_jit_config.h"
 
+#include "qdp_dispatch.h"
 
 #include "qdp_forward.h"
+#include "qdp_llvm.h"
 #include "qdp_datalayout.h"
 
-#include "qdp_jit_util.h"
 
 // Basic includes
 #define PETE_USER_DEFINED_EXPRESSION
@@ -112,22 +106,27 @@ namespace QDP {
 
 #include "qdp_init.h"
 
-#include "qdp_deviceparams.h"
-#include "qdp_cuda.h"
+//
+
+
+#include "qdp_cache.h"
+#include "qdp_gpu.h"
 #include "qdp_cuda_allocator.h"
-#include "qdp_pool_allocator.h"
 
 #include "qdp_multi.h"
-#include "qdp_cache.h"
+#include "qdp_stdio.h"
+#include "qdp_pool_allocator.h"
 
-//
+#include "qdp_jit_util.h"
+
 
 #include "qdp_arrays.h"
 
 #include "qdp_params.h"
 #include "qdp_layout.h"
 #include "qdp_io.h"
-#include "qdp_stdio.h"
+//#include "qdp_stdio.h"
+
 
 #ifdef QDP_NO_LIBXML2
 #warning not using libxml2
@@ -135,6 +134,8 @@ namespace QDP {
 #include "qdp_xmlio.h"
 #include "qdp_qdpio.h"
 #endif
+
+#include "qdp_jit_function.h"
 
 #ifndef QDP_USE_HDF5
 //#warning not using hdf5
@@ -152,7 +153,6 @@ namespace QDP {
 
 #include "qdp_traits.h"
 #include "qdp_qdpexpr.h"
-#include "qdp_qdptypejit.h"
 #include "qdp_qdptype.h"
 #include "qdp_qdpsubtypejit.h"
 #include "qdp_qdpsubtype.h"
@@ -163,13 +163,8 @@ namespace QDP {
 
 
 #include "qdp_basejit.h"
-//#include "qdp_basereg.h"
 
-
-// Include the allocator stuff here, before QDP_outer
 #include "qdp_allocator.h"
-
-
 
 #include "qdp_newops.h"
 #include "qdp_newopsreg.h"
@@ -177,12 +172,20 @@ namespace QDP {
 #include "qdp_optops.h"
 #include "qdp_mastermap.h"
 
+#include "qdp_expr_writer.h"
 #include "qdp_profile.h"
+
+#if defined(ARCH_SCALAR)
+#include "qdp_scalar_mapresource.h"
+#elif defined(ARCH_PARSCALAR)
+#include "qdp_parscalar_mapresource.h"
+#else
+#error "Unknown architecture ARCH"
+#endif
 
 #include "qdp_mapresource.h"
 #include "qdp_handle.h"
 #include "qdp_map.h"
-#include "qdp_autotuning.h"
 
 
 #include "qdp_simpleword.h"
@@ -206,10 +209,17 @@ namespace QDP {
 #include "qdp_globalfuncs.h"
 #include "qdp_specializations.h"
 
-//#include "qdp_special.h"
 #include "qdp_random.h"
 
-//#include "qdp_newopsjit.h"
+#if defined(ARCH_SCALAR)
+#include "qdp_scalar_internal.h"
+#elif defined(ARCH_PARSCALAR)
+#include "qdp_parscalar_internal.h"
+#else
+#error "Unknown architecture ARCH"
+#endif
+
+
 #include "qdp_internal.h"
 #include "qdp_jitfunction.h"
 #include "qdp_jitf_copymask.h"
@@ -218,40 +228,24 @@ namespace QDP {
 #include "qdp_jitf_globalmax.h"
 #include "qdp_jitf_gaussian.h"
 
-// Include threading code here if applicable
-#include "qdp_dispatch.h"
+#include "qdp_dyn_functions.h"
+#include "qdp_sum.h"
+#include "qdp_functions.h"
 
-namespace ThreadReductions { 
- 
-}
-
+#ifdef QDP_CUDA_SPECIAL
+#warning "Using CUDA specializations"
+#include "qdp_functions_special.h"
+#include "cuda_special.h"
+#endif
 
 #if defined(ARCH_SCALAR)
-// Architectural specific code to a single node/single proc box
-#warning "Using scalar architecture"
 #include "qdp_scalar_specific.h"
-// Include SSE code here if applicable
 #elif defined(ARCH_PARSCALAR)
-// Architectural specific code to a parallel/single proc box
-//#warning "Using parallel scalar architecture"
-#include "qdp_sum.h"
 #include "qdp_parscalar_specific.h"
-
-#elif defined(ARCH_SCALARVEC)
-// Architectural specific code to a single node/single proc box 
-// with vector extension
-#warning "Using scalar architecture with vector extensions"
-#include "qdp_scalarvec_specific.h"
-
-#elif defined(ARCH_PARSCALARVEC)
-// Architectural specific code to a parallel/single proc box
-// with vector extension
-#warning "Using parallel scalar architecture with vector extensions"
-#include "qdp_parscalarvec_specific.h"
-
 #else
 #error "Unknown architecture ARCH"
 #endif
+
 
 #include "qdp_flopcount.h"
 #include "qdp_globalfuncs_subtype.h"

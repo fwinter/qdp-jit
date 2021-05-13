@@ -47,6 +47,17 @@ public:
 
 };
 
+
+  template<class T, int N>
+  struct FirstWord<PColorMatrix<T,N> >
+  {
+    static typename WordType<T>::Type_t get(const PColorMatrix<T,N>& a)
+    {
+      return FirstWord<T>::get(a.elem(0,0));
+    }
+  };
+  
+
 /*! @} */   // end of group primcolormatrix
 
 //-----------------------------------------------------------------------------
@@ -778,6 +789,24 @@ quarkContractXX(const PColorMatrix<T1,4>& s1, const PColorMatrix<T2,4>& s2)
   return d ; 
 }
 
+
+
+
+// Output
+//! Ascii output
+template<class T, int N>  
+inline
+StandardOutputStream& operator<<(StandardOutputStream& s, const PColorMatrix<T,N>& d)
+{
+  for(int j=0; j < N; ++j) {
+    for(int i=0; i < N; ++i)
+      s << d.elem(i,j);
+    s << "\n";
+  }
+  return s;
+}
+
+  
 
 /*! @} */   // end of group primcolormatrix
 

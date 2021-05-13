@@ -25,10 +25,18 @@ public:
     F.setup( rhs.elem() );
   }
 
+  void setup_value(const RScalarJIT< typename JITType<T>::Type_t >& rhs ) {
+    F.setup_value( rhs.elem() );
+  }
+
+  
   RScalarREG(const RScalarJIT< typename JITType<T>::Type_t >& rhs ) {
     setup( rhs.elem() );
   }
 
+  RScalarREG(const typename WordType<T>::Type_t& rhs): F(rhs) {}
+
+  
   // RScalarREG& operator=( const RScalarJIT< typename JITType<T>::Type_t >& rhs) {
   //   setup(rhs);
   //   return *this;
@@ -333,6 +341,12 @@ public:
     im.setup( rhs.imag() );
   }
 
+  void setup_value(const RComplexJIT< typename JITType<T>::Type_t >& rhs ) {
+    re.setup_value( rhs.real() );
+    im.setup_value( rhs.imag() );
+  }
+
+  
   // RComplexREG& operator=( const RComplexJIT< typename JITType<T>::Type_t >& rhs) {
   //   setup(rhs);
   //   return *this;
@@ -1736,6 +1750,13 @@ localInnerProduct(const RScalarREG<T1>& s1, const RScalarREG<T2>& s2)
   return localInnerProduct(s1.elem(), s2.elem());
 }
 
+template<class T1, class T2>
+inline typename BinaryReturn<RScalarREG<T1>, RScalarREG<T2>, FnLocalColorInnerProduct>::Type_t
+localColorInnerProduct(const RScalarREG<T1>& s1, const RScalarREG<T2>& s2)
+{
+  return localColorInnerProduct(s1.elem(), s2.elem());
+}
+
 
 //! RScalarREG<T> = InnerProductReal(adj(PMatrix<T1>)*PMatrix<T1>)
 // Real-ness is eaten at this level
@@ -2447,6 +2468,24 @@ localInnerProduct(const RComplexREG<T1>& l, const RComplexREG<T2>& r)
 }
 
 
+
+template<class T1, class T2>
+struct BinaryReturn<RComplexREG<T1>, RComplexREG<T2>, FnLocalColorInnerProduct > {
+  typedef RComplexREG<typename BinaryReturn<T1, T2, FnLocalColorInnerProduct>::Type_t>  Type_t;
+};
+
+template<class T1, class T2>
+inline typename BinaryReturn<RComplexREG<T1>, RComplexREG<T2>, FnLocalColorInnerProduct>::Type_t
+localColorInnerProduct(const RComplexREG<T1>& l, const RComplexREG<T2>& r)
+{
+  typedef typename BinaryReturn<RComplexREG<T1>, RComplexREG<T2>, FnLocalColorInnerProduct>::Type_t  Ret_t;
+
+  return Ret_t(localColorInnerProduct(l.real(),r.real()) + localColorInnerProduct(l.imag(),r.imag()),
+	       localColorInnerProduct(l.real(),r.imag()) - localColorInnerProduct(l.imag(),r.real()));
+}
+
+  
+
 //! RScalarREG<T> = InnerProductReal(adj(RComplexREG<T1>)*RComplexREG<T1>)
 // Real-ness is eaten at this level
 template<class T1, class T2>
@@ -2620,32 +2659,6 @@ fill_gaussian(RComplexREG<T>& d, RComplexREG<T>& r1, RComplexREG<T>& r2)
 #endif
 }
 
-
-
-template<class T>
-inline void 
-qdpPHI(RScalarREG<T>& d, 
-       const RScalarREG<T>& phi0, llvm::BasicBlock* bb0 ,
-       const RScalarREG<T>& phi1, llvm::BasicBlock* bb1 )
-{
-  qdpPHI(d.elem(),
-	 phi0.elem(),bb0,
-	 phi1.elem(),bb1);
-}
-
-template<class T>
-inline void 
-qdpPHI(RComplexREG<T>& d, 
-       const RComplexREG<T>& phi0, llvm::BasicBlock* bb0 ,
-       const RComplexREG<T>& phi1, llvm::BasicBlock* bb1 )
-{
-  qdpPHI(d.real(),
-	 phi0.real(),bb0,
-	 phi1.real(),bb1);
-  qdpPHI(d.imag(),
-	 phi0.imag(),bb0,
-	 phi1.imag(),bb1);
-}
 
 
 

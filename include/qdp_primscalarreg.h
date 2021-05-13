@@ -30,6 +30,12 @@ namespace QDP {
       F.setup( rhs.elem() );
     }
 
+    void setup_value(const PScalarJIT< typename JITType<T>::Type_t >& rhs ) {
+      F.setup_value( rhs.elem() );
+    }
+
+    PScalarREG(const typename WordType<T>::Type_t& rhs): F(rhs) {}
+
 
     // Default constructing should be possible
     // then there is no need for MPL index when
@@ -885,6 +891,7 @@ sqrt(const PScalarREG<T1>& s1)
   return sqrt(s1.elem());
 }
 
+
 template<class T1>
 inline typename UnaryReturn<PScalarREG<T1>, FnIsFinite>::Type_t
 isfinite(const PScalarREG<T1>& s1)
@@ -1441,6 +1448,20 @@ localInnerProduct(const PScalarREG<T1>& s1, const PScalarREG<T2>& s2)
 }
 
 
+template<class T1, class T2>
+struct BinaryReturn<PScalarREG<T1>, PScalarREG<T2>, FnLocalColorInnerProduct > {
+  typedef PScalarREG<typename BinaryReturn<T1, T2, FnLocalColorInnerProduct>::Type_t>  Type_t;
+};
+
+template<class T1, class T2>
+inline typename BinaryReturn<PScalarREG<T1>, PScalarREG<T2>, FnLocalColorInnerProduct>::Type_t
+localColorInnerProduct(const PScalarREG<T1>& s1, const PScalarREG<T2>& s2)
+{
+  return localColorInnerProduct(s1.elem(), s2.elem());
+}
+
+  
+
 //! PScalarREG<T> = InnerProductReal(adj(PMatrix<T1>)*PMatrix<T1>)
 template<class T1, class T2>
 struct BinaryReturn<PScalarREG<T1>, PScalarREG<T2>, FnInnerProductReal > {
@@ -1526,16 +1547,6 @@ gather_sites(PScalarREG<T>& d,
 }
 
 
-template<class T>
-inline void 
-qdpPHI(PScalarREG<T>& d, 
-       const PScalarREG<T>& phi0, llvm::BasicBlock* bb0 ,
-       const PScalarREG<T>& phi1, llvm::BasicBlock* bb1 )
-{
-  qdpPHI(d.elem(),
-	 phi0.elem(),bb0,
-	 phi1.elem(),bb1);
-}
 
 
 

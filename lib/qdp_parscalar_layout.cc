@@ -34,6 +34,11 @@ namespace QDP
   }
 
 
+
+
+
+  
+
 //-----------------------------------------------------------------------------
   namespace Layout
   {
@@ -74,12 +79,16 @@ namespace QDP
       int  num_iogrid;
 	  multi1d<int> iogrid;
 
-	} _layout;
+      bool initialized = false;
+    } _layout;
 
 
     //-----------------------------------------------------
     // Functions
 
+    //! Layout initialized ?
+    bool initialized() {return _layout.initialized;}
+    
     //! Main destruction routine
     void destroy() {}
 
@@ -211,6 +220,8 @@ namespace QDP
     //! Initializer for all the layout defaults
     void initDefaults()
     {
+      jit_config_print();
+      
 #if QDP_DEBUG >= 2
       QDP_info("Create default subsets");
 #endif
@@ -366,6 +377,9 @@ namespace QDP
       // Initialize various defaults
       initDefaults();
 
+      // Set layout init to 'true'
+      _layout.initialized = true;
+      
       QDPIO::cout << "Finished lattice layout" << endl;
 
 #if QDP_DEBUG >= 2

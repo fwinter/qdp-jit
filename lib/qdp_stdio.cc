@@ -276,4 +276,21 @@ StandardOutputStream& StandardOutputStream::writePrimitive(T output)
 }
 
 
+std::ostream& operator<<(std::ostream &os, const DynKey& rhs)
+{
+  for ( int i = 0 ; i < rhs.keys.size() ; ++i )
+    os << rhs.keys.at(i) << " ";
+  return os;
+}
+
+
+StandardOutputStream& operator<<(StandardOutputStream& s, const DynKey& rhs)
+{
+  for ( int i = 0 ; i < rhs.keys.size() ; ++i )
+    s << rhs.keys.at(i) << " ";
+  return s;
+}
+
+  
+
 } // namespace QDP;

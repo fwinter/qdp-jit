@@ -33,6 +33,7 @@ namespace QDP {
   T F[N*N];
 public:
   typedef C<T,N>  CC;
+  typedef T  Sub_t;
 
 
   //! PMatrixREG = PScalarREG
@@ -150,28 +151,11 @@ public:
 public:
   T getRegElem(int row,int col) const {
     assert(!"ni");
-#if 0
-    int r_matidx = this->func().getRegs( Jit::s32 , 1 );
-    int r_N = this->func().getRegs( Jit::s32 , 1 );
-    this->func().asm_mov_literal( r_N , (int)N );
-    this->func().asm_mul( r_matidx , col , r_N );
-    this->func().asm_add( r_matidx , r_matidx , row );
-    return JV<T,N*N>::getRegElem( r_matidx );
-#endif
   }
-
-
-
 
         T& elem(int i, int j)       {return F[j+N*i];}
   const T& elem(int i, int j) const {return F[j+N*i];}
 
-  //       T& elem(int i, int j)       {return this->arrayF(j+N*i);}
-  // const T& elem(int i, int j) const {return this->arrayF(j+N*i);}
-
-
-  // T& elem(int i, int j) {return JV<T,N*N>::getF()[j+N*i];}
-  // const T& elem(int i, int j) const {return JV<T,N*N>::getF()[j+N*i];}
 
 };
 
@@ -1238,6 +1222,27 @@ cmplx(const PMatrixREG<T1,N,C>& s1, const PMatrixREG<T2,N,C>& s2)
 
 
 
+  //! isfinite
+template<class T1, int N, template<class,int> class C>
+struct UnaryReturn<PMatrixREG<T1,N,C>, FnIsFinite> {
+  typedef PScalarREG< typename UnaryReturn<T1, FnIsFinite >::Type_t > Type_t;
+};
+
+template<class T1, int N, template<class,int> class C>
+inline typename UnaryReturn<PMatrixREG<T1,N,C>, FnIsFinite>::Type_t
+isfinite(const PMatrixREG<T1,N,C>& l)
+{
+  typename UnaryReturn<PMatrixREG<T1,N,C>, FnIsFinite>::Type_t d(true);
+
+  for(int i=0; i < N; ++i)
+    for(int j=0; j < N; ++j)
+      d.elem() &= isfinite(l.elem(i,j));
+
+  return d;
+}
+
+
+
 // Functions
 //! PMatrixREG = i * PMatrixREG
 template<class T, int N, template<class,int> class C>
@@ -1741,18 +1746,6 @@ where(const PScalarREG<T1>& a, const PMatrixREG<T2,N,C>& b, const PMatrixREG<T3,
 }
 
 
-template<class T, int N, template<class,int> class C>
-inline void 
-qdpPHI(PMatrixREG<T,N,C>& d, 
-       const PMatrixREG<T,N,C>& phi0, llvm::BasicBlock* bb0 ,
-       const PMatrixREG<T,N,C>& phi1, llvm::BasicBlock* bb1 )
-{
-  for(int i=0; i < N; ++i)
-    for(int j=0; j < N; ++j)
-      qdpPHI(d.elem(i,j),
-	     phi0.elem(i,j),bb0,
-	     phi1.elem(i,j),bb1);
-}
 
 
 

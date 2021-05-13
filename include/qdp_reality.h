@@ -263,7 +263,11 @@ void read(XMLReader& xml, const string& path, RScalar<T>& d)
 
 //! Reality complex
 /*! All fields are either complex or scalar reality */
+#ifdef QDP_THRUSTALIGN
+template<class T> class alignas(sizeof(T)*2) RComplex
+#else
 template<class T> class RComplex
+#endif
 {
 public:
   typedef T Sub_t;
@@ -409,8 +413,26 @@ public:
 private:
   T re;
   T im;
-} QDP_ALIGN8;   // possibly force alignment
+};
 
+
+template<class T>
+struct FirstWord<RScalar<T> >
+{
+  static typename WordType<T>::Type_t get(const RScalar<T>& a)
+  {
+    return FirstWord<T>::get(a.elem());
+  }
+};
+
+template<class T>
+struct FirstWord<RComplex<T> >
+{
+  static typename WordType<T>::Type_t get(const RComplex<T>& a)
+  {
+    return FirstWord<T>::get(a.real());
+  }
+};
 
 
 template<class T> 
@@ -1644,6 +1666,12 @@ template<class T1, class T2>
 struct BinaryReturn<RScalar<T1>, RScalar<T2>, FnLocalInnerProduct > {
   typedef RScalar<typename BinaryReturn<T1, T2, FnLocalInnerProduct>::Type_t>  Type_t;
 };
+
+template<class T1, class T2>
+struct BinaryReturn<RScalar<T1>, RScalar<T2>, FnLocalColorInnerProduct > {
+  typedef RScalar<typename BinaryReturn<T1, T2, FnLocalColorInnerProduct>::Type_t>  Type_t;
+};
+
 
 template<class T1, class T2>
 inline typename BinaryReturn<RScalar<T1>, RScalar<T2>, FnLocalInnerProduct>::Type_t

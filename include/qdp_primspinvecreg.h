@@ -41,6 +41,13 @@ public:
       this->elem(i).setup( j.elem(i) );
   }
 
+  
+  void setup_value( const typename JITType< PSpinVectorREG >::Type_t& j ) {
+    for (int i = 0 ; i < N ; i++ )
+      this->elem(i).setup_value( j.elem(i) );
+  }
+
+  
 
   template<class T1>
   PSpinVectorREG(const PSpinVectorREG<T1,N>& a)
@@ -364,11 +371,9 @@ template<class T1, int N>
 inline typename UnaryReturn<PSpinVectorREG<T1,N>, FnIsFinite>::Type_t
 isfinite(const PSpinVectorREG<T1,N>& l)
 {
-  typename UnaryReturn<PSpinVectorREG<T1,N>, FnIsFinite>::Type_t d;
+  typename UnaryReturn<PSpinVectorREG<T1,N>, FnIsFinite>::Type_t d(true);
 
-  d.elem() = isfinite(l.elem(0));
-
-  for(int i=1; i < N; ++i)
+  for(int i=0; i < N; ++i)
     d.elem() &= isfinite(l.elem(i));
 
   return d;
@@ -484,7 +489,7 @@ peekSpin(const PSpinVectorREG<T,N>& l, llvm::Value* row)
 
   typedef typename JITType< PSpinVectorREG<T,N> >::Type_t TTjit;
 
-  llvm::Value* ptr_local = llvm_alloca( llvm_type< typename WordType<T>::Type_t >::value , TTjit::Size_t );
+  llvm::Value* ptr_local = llvm_alloca( llvm_get_type< typename WordType<T>::Type_t >() , TTjit::Size_t );
 
   TTjit dj;
   dj.setup( ptr_local, JitDeviceLayout::Scalar );
@@ -1764,8 +1769,8 @@ operator*(const GammaConstDP<4,10>&, const PSpinVectorREG<T2,4>& r)
 
   d.elem(0) =  r.elem(3);
   d.elem(1) = -r.elem(2);
-  d.elem(2) = -r.elem(1);
-  d.elem(3) =  r.elem(0);
+  d.elem(2) =  r.elem(1);
+  d.elem(3) = -r.elem(0);
   
   return d;
 }
@@ -1873,17 +1878,6 @@ chiralProjectMinus(const PSpinVectorREG<T,4>& s1)
 }
 
 
-template<class T, int N>
-inline void 
-qdpPHI(PSpinVectorREG<T,N>& d, 
-       const PSpinVectorREG<T,N>& phi0, llvm::BasicBlock* bb0 ,
-       const PSpinVectorREG<T,N>& phi1, llvm::BasicBlock* bb1 )
-{
-  for(int i=0; i < N; ++i)
-    qdpPHI(d.elem(i),
-	   phi0.elem(i),bb0,
-	   phi1.elem(i),bb1);
-}
 
 
 /*! @} */   // end of group primspinvector

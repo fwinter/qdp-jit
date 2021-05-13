@@ -1,4 +1,4 @@
-AC_INIT([qdp++],[1.42.0],[edwards@jlab.org])
+AC_INIT([qdp-jit],[0.1],[fwinter@jlab.org])
 
 AC_CONFIG_AUX_DIR(config)
 
@@ -14,6 +14,12 @@ AM_INIT_AUTOMAKE
 dnl defines...
 AC_CONFIG_HEADERS([include/qdp_config_internal.h])
 
+AC_ARG_WITH(backend,
+  AC_HELP_STRING([--with-backend=(CUDA/ROCM)], [ Specify backend to use (default: CUDA)]),
+  [ backend_use="${withval}" ],
+  [ backend_use="CUDA" ]
+)
+
 
 AC_ARG_WITH(cuda,
   AC_HELP_STRING([--with-cuda=CUDADIR], [ Specify CUDA installation directory (default: /usr/local/cuda)]),
@@ -21,21 +27,57 @@ AC_ARG_WITH(cuda,
   [ cuda_home="/usr/local/cuda" ]
 )
 
+AC_ARG_WITH(rocm,
+  AC_HELP_STRING([--with-rocm=ROCMDIR], [ Specify ROCM installation directory (default: /opt/rocm)]),
+  [ rocm_home="${withval}" ],
+  [ rocm_home="/opt/rocm" ]
+)
+
+
+AC_ARG_ENABLE(profiling,
+  AC_HELP_STRING([--enable-profiling],
+    [Enable profiling. Diagnostic use only.]),
+  [ac_profile=1],
+  [ac_profile=0]
+)
+
+
+AC_ARG_ENABLE(rocm-stats,
+   AC_HELP_STRING([--enable-rocm-stats], [ Enable JIT statistics for ROCm ] ),
+   [ rocm_stats="${enableval}" ],
+   [ rocm_stats="no" ]
+)
+
+
 AC_ARG_ENABLE(cuda-managed-memory,
    AC_HELP_STRING([--enable-cuda-managed-memory], [ Enable memory to be allocated with Cuda Managed Memory ] ),
    [ cuda_managed_memory="${enableval}" ],
    [ cuda_managed_memory="no" ]
 )
 
-AC_MSG_NOTICE([Configuring with CUDA installed in = ${cuda_home}])
+
 AC_DEFINE_UNQUOTED(CUDA_DIR,"${cuda_home}",[CUDA install path])
 AC_SUBST(SUBST_CUDA_DIR,"${cuda_home}")
+
+
+AC_DEFINE_UNQUOTED(ROCM_DIR,"${rocm_home}",[ROCM install path])
+AC_SUBST(SUBST_ROCM_DIR,"${rocm_home}")
+
+
+dnl Check if profiling is enabled
+if test ${ac_profile} -eq 1; then 
+   AC_DEFINE_UNQUOTED(QDP_USE_PROFILING, ${ac_profile}, [Enable profiling])
+   AC_MSG_NOTICE([Enable profiling])
+fi
+
 
 if test "X${cuda_managed_memory}X" == "XyesX";
 then
   AC_MSG_NOTICE([Will Use CUDA Managed Memory for Allocations])
   AC_DEFINE(QDP_USE_CUDA_MANAGED_MEMORY, [1], [ CUDA use managed memory ])
 fi
+
+
 
 
 dnl
@@ -115,13 +157,62 @@ AC_ARG_ENABLE(custom-kernels,
   [ac_custom="no"]
 )
 
-dnl --enable-profiling
-AC_ARG_ENABLE(profiling,
-  AC_HELP_STRING([--enable-profiling],
-    [Enable profiling. Diagnostic use only.]),
-  [ac_profile=1],
-  [ac_profile=0]
+
+AC_ARG_ENABLE(thrust-alignment,
+  AC_HELP_STRING([--enable-thrust-alignment],
+    [Enables alignment for thrust]),
+  [ac_thrustalign="yes"],
+  [ac_thrustalign="no"]
 )
+
+
+
+dnl --enable-custom-kernels
+AC_ARG_ENABLE(cuda-special,
+  AC_HELP_STRING([--enable-cuda-special],
+    [Build CUDA functions. Use --enable-cuda-sm and possibly --enable-cuda-nvcc]),
+  [ac_cuda_special="yes"],
+  [ac_cuda_special="no"]
+)
+
+
+AC_ARG_ENABLE(deep-log,
+  AC_HELP_STRING([--enable-deep-log],
+    [Deep log facility.]),
+  [ac_deep_log="yes"],
+  [ac_deep_log="no"]
+)
+
+if test "X${ac_deep_log}X" = "XyesX"; then
+  AC_MSG_NOTICE([Enabling deep log facility])
+  AC_DEFINE(QDP_DEEP_LOG, [1], [ Deep log facility ])
+fi
+
+
+AC_ARG_ENABLE(cuda-sm,
+  AC_HELP_STRING([--enable-cuda-sm=<arch>],
+    [Build special CUDA function for compute capability <sm_50/...>]),
+    [ac_cuda_sm=${enableval}],
+    [ac_cuda_sm="sm_50"]
+)
+
+AC_SUBST(CUDA_SM, "${ac_cuda_sm}")
+
+
+AC_ARG_ENABLE(cuda-nvcc,
+  AC_HELP_STRING([--enable-cuda-nvcc=<arch>],
+    [Path to CUDA NVCC]),
+    [ac_cuda_nvcc=${enableval}],
+    [ac_cuda_nvcc="nvcc"]
+)
+
+AC_SUBST(CUDA_NVCC, "${ac_cuda_nvcc}")
+
+
+
+
+
+
 
 dnl --enable-parallel-arch argument
 AC_ARG_ENABLE(parallel-arch,
@@ -148,6 +239,23 @@ AC_ARG_ENABLE(filedb,
   [filedb_enabled="yes"]
 )
 
+
+AC_ARG_ENABLE(llvm12,
+  AC_HELP_STRING(
+    [--enable-llvm12],
+    [Enable changes to compile with LLVM 12.0 release]
+  ),
+  [LLVM12_ENABLED=$enableval],
+  [LLVM12_ENABLED="no"]
+)
+
+if test "X${LLVM12_ENABLED}X" = "XyesX"; then
+  AC_MSG_NOTICE([Enabling changes for LLVM 12.0 release ])
+  AC_DEFINE(QDP_LLVM12, [1], [ Compile for LLVM 12.0 release  ])
+fi
+
+
+
 dnl comm-split to find device id
 AC_ARG_ENABLE(comm-split-deviceinit,
   AC_HELP_STRING([--enable-comm-split-deviceinit],
@@ -162,34 +270,68 @@ then
  AC_DEFINE([QDP_USE_COMM_SPLIT_INIT], [1],[Comm split for local ranks])
 fi
 
-dnl if test "X${gpu_enabled}X" == "XyesX"; 
-dnl then
-     ac_gcc="$CXX"     				      
-     AC_DEFINE_UNQUOTED([CUDA_GCC],"${ac_gcc}",[CUDA C/C++ Compiler])
-     AC_DEFINE_UNQUOTED(QDP_IS_QDPJIT, ${gpu_enabled}, [Enable GPU/JIT])
-     AC_DEFINE_UNQUOTED(QDPJIT_IS_QDPJITNVVM, ${gpu_enabled}, [Enable GPU/JIT])
-     AC_SUBST(CUDA_LIBS, [-lcuda])
-     AC_SUBST(CUDA_CXXFLAGS, [-I${cuda_home}/include])
-     AC_SUBST(CUDA_LDFLAGS, [-L${cuda_home}/lib64])
-dnl else
-dnl     AC_MSG_NOTICE([Not using GPUs ])
-dnl fi
+ac_gcc="$CXX"
+
+if test "X${backend_use}X" == "XCUDAX";
+then
+  AC_MSG_NOTICE([Configuring with CUDA installed in = ${cuda_home}])
+  AC_DEFINE_UNQUOTED([CUDA_GCC],"${ac_gcc}",[CUDA C/C++ Compiler])
+  AC_DEFINE([QDP_BACKEND_CUDA], [1] , [CUDA] )
+  #AC_SUBST(CUDA_LIBS, [-lcuda])
+  AC_SUBST(GPU_CXXFLAGS, ["-I${cuda_home}/include"])
+  AC_SUBST(GPU_LDFLAGS, ["-L${cuda_home}/lib64"])
+  if test "X${ac_cuda_special}X" = "XyesX"; then
+    AC_DEFINE_UNQUOTED(QDP_CUDA_SPECIAL, ${ac_cuda_special}, [Include CUDA special kernels])
+    AC_MSG_NOTICE([Include CUDA special kernels])
+    tmp_gpu_libs="-lcuda -lcudart"
+  else
+    tmp_gpu_libs="-lcuda"
+  fi
+else
+  AC_MSG_NOTICE([Configuring with ROCM installed in = ${rocm_home}])
+  #AC_SUBST(CUDA_LIBS, [-lcuda])
+  AC_DEFINE([QDP_BACKEND_ROCM], [1] , [ROCM] )
+  AC_SUBST(GPU_CXXFLAGS, ["-I${rocm_home}/include"])
+  AC_SUBST(GPU_LDFLAGS, ["-L${rocm_home}/lib -L${rocm_home}/lib64"])
+  tmp_gpu_libs="-lamdhip64"
+fi
+
+
+if test "X${ac_thrustalign}X" = "XyesX";
+then
+  tmp_gpu_libs+=" -lcudart"
+fi
+
+
+if test "X${rocm_stats}X" == "XyesX";
+then
+  AC_MSG_NOTICE([Will Use ROCm statistics])
+  AC_DEFINE(QDP_USE_ROCM_STATS, [1], [ ROCM stats ])
+  tmp_gpu_libs+=" -lamd_comgr"
+fi
+
+
+AC_DEFINE_UNQUOTED(QDP_IS_QDPJIT, "1", [Enable GPU/JIT])
+AC_DEFINE_UNQUOTED(QDPJIT_IS_QDPJITNVVM, "1", [Enable GPU/JIT])
 
 
 
-
-
-dnl Check if profiling is enabled
+dnl Include custom kernels
 if test "X${ac_custom}X" = "XyesX"; then
    AC_DEFINE_UNQUOTED(QDP_CUSTOM_KERNELS, ${ac_custom}, [Include custom kernels])
    AC_MSG_NOTICE([Include custom kernels])
 fi
 
-dnl Check if profiling is enabled
-if test ${ac_profile} -eq 1; then 
-   AC_DEFINE_UNQUOTED(QDP_USE_PROFILING, ${ac_profile}, [Enable profiling])
-   AC_MSG_NOTICE([Enable profiling])
+
+if test "X${ac_thrustalign}X" = "XyesX"; then
+   AC_DEFINE_UNQUOTED(QDP_THRUSTALIGN, ${ac_thrustalign}, [Enable alignment for Thrust])
+   AC_MSG_NOTICE([Enable alignment for Thrust])
 fi
+
+
+
+AC_SUBST(GPU_LIBS, "${tmp_gpu_libs}" )
+
 
 dnl Check if memory debugging is enabled
 if test ${ac_memdebug_enabled} -eq 1; then 
@@ -417,8 +559,8 @@ fi
 
 
 AC_MSG_NOTICE([Found LLVM configuration program ${LLVM_CONFIG}])
-#AC_SUBST(LLVM_CXXFLAGS, "`${LLVM_CONFIG} --cxxflags| sed -e 's/-fno-exceptions//'| sed -e 's/-fno-rtti//'| sed -e 's/-fvisibility-inlines-hidden//'| sed -e 's/-fPIC//'| sed -e 's/-Woverloaded-virtual//'| sed -e 's/-Wcast-qual//'   `")
-AC_SUBST(LLVM_CXXFLAGS, "`${LLVM_CONFIG} --cxxflags| sed -e 's/-fno-exceptions//'| sed -e 's/-std=c++11//'`")
+AC_SUBST(LLVM_CXXFLAGS, "`${LLVM_CONFIG} --cxxflags| sed -e 's/-fno-exceptions//'| sed -e 's/-fno-rtti//'| sed -e 's/-fvisibility-inlines-hidden//'| sed -e 's/-fPIC//'| sed -e 's/-Woverloaded-virtual//'| sed -e 's/-Wcast-qual//'   `")
+#AC_SUBST(LLVM_CXXFLAGS, "`${LLVM_CONFIG} --cxxflags| sed -e 's/-fno-exceptions//'| sed -e 's/-std=c++11//'`")
 AC_MSG_NOTICE([LLVM compile flags: ${LLVM_CXXFLAGS}])
 AC_SUBST(LLVM_LDFLAGS,  ["`${LLVM_CONFIG} --ldflags` -Wl,-rpath,`${LLVM_CONFIG} --libdir`"])
 AC_MSG_NOTICE([LLVM linking flags: ${LLVM_LDFLAGS}])
@@ -447,7 +589,7 @@ if test "X${with_libxml2}X" = "XnoX" ; then
   AC_MSG_NOTICE([Disabling Libxml])
   AC_SUBST(LIBXML2_CXXFLAGS, "")
   AC_SUBST(LIBXML2_LIBS,"")
-  AC_DEFINE(QDP_NO_LIBXML2, [1], [ Dont use LIBXML2 ])
+
 else
 
   if test "X${LIBXML2_HOME}X" = "XX" ; then
@@ -465,7 +607,8 @@ else
   AC_MSG_NOTICE([libxml2 compile flags: ${LIBXML2_CXXFLAGS}])
   AC_SUBST(LIBXML2_LIBS,     "`${LIBXML2_CONFIG} --libs`")
   AC_MSG_NOTICE([libxml2 libraries flags: ${LIBXML2_LIBS}])
-
+  AC_DEFINE_UNQUOTED(QDP_USE_LIBXML2, [1], [Enable LIBXML2 support])
+  
   dnl This function is defined in acinclude.m4
   dnl it tries to try to compile the program 
   AC_MSG_CHECKING([if we can compile/link a simple libxml2 program])
@@ -540,65 +683,7 @@ else
 fi
 
 
-AC_ARG_WITH(bagel-qdp,
-  AC_HELP_STRING(
-    [--with-bagel-qdp=DIR],
-    [Build QDP++ using bagel_qdp where bagel_qdp is in DIR.]
-  ),
-  [BAGEL_QDP_DIR=${with_bagel_qdp}
-   BAGEL_QDP_ENABLED="yes"],
-  [BAGEL_QDP_DIR=""
-   BAGEL_QDP_ENABLED="no" ]
-)
 
-if test "X${BAGEL_QDP_ENABLED}X" = "XyesX";
-then 
-     AC_MSG_NOTICE([Using BAGEL QDP])
-     AC_DEFINE(QDP_USE_BAGEL_QDP, [1], [Use Bagel QDP library for BLAS])
-     dnl get flags
-     if test "X${BAGEL_QDP_DIR}X" = "XX" ; 
-     then
-       AC_PATH_PROG([BAGEL_QDP_CONFIG], [bagel-qdp-config], [])
-     else
-       AC_PATH_PROG([BAGEL_QDP_CONFIG], [bagel-qdp-config], [], [${BAGEL_QDP_DIR}/bin:${PATH}])
-     fi     	
-
-     if test "X${BAGEL_QDP_CONFIG}X" = "XX"; 
-     then
-       AC_MSG_ERROR([bagel-qdp-config not found])
-     fi
-     AC_MSG_NOTICE([Found bagel_qdp configuration program ${BAGEL_QDP_CONFIG}])
-     AC_SUBST(BAGEL_QDP_CXXFLAGS, "`${BAGEL_QDP_CONFIG} --cxxflags`")
-     AC_MSG_NOTICE([bagel_qdp compile flags: ${BAGEL_QDP_CXXFLAGS}])
-     AC_SUBST(BAGEL_QDP_LDFLAGS, "`${BAGEL_QDP_CONFIG} --ldflags`")
-     AC_MSG_NOTICE([bagel_qdp link flags : ${BAGEL_QDP_LDFLAGS}])
-     AC_SUBST(BAGEL_QDP_LIBS,     "`${BAGEL_QDP_CONFIG} --libs`")
-     AC_MSG_NOTICE([bagel_qdp libraries flags: ${BAGEL_QDP_LIBS}])
-
-     AC_MSG_CHECKING([if we can compile/link a simple bagel_qdp program])
-     PAC_BAGEL_QDP_LINK_CXX_FUNC(
-       ${BAGEL_QDP_CXXFLAGS},
-       ${BAGEL_QDP_LDFLAGS},
-       ${BAGEL_QDP_LIBS},
-       ,
-       ,
-       [bagelqdp_link_ok=yes],
-       [bagelqdp_link_ok=no]
-     )
-
-     if test "X${bagelqdp_link_ok}X" = "XyesX" ; then 
-        AC_MSG_RESULT(yes)
-     else 
-         AC_MSG_RESULT(no)
-         AC_MSG_ERROR([Cannot compile/link a program with bagel_qdp. Use --with-bagel-qdp=<dir> to select a working version.])
-     fi 
-else
-     AC_MSG_NOTICE([not using bagel_qdp])
-     AC_DEFINE(QDP_USE_BAGEL_QDP, [0], [Donot use Bagel QDP library for BLAS])
-     AC_SUBST(BAGEL_QDP_CXXFLAGS, "")
-     AC_SUBST(BAGEL_QDP_LDFLAGS, "")
-     AC_SUBST(BAGEL_QDP_LIBS,     "")
-fi
       
 dnl Build filedb
 if test "X${filedb_enabled}X" == "XyesX"; 
@@ -614,63 +699,6 @@ fi
 
 AM_CONDITIONAL(BUILD_FILEDB,
   [test "x${filedb_enabled}x" = "xyesx" ])
-
-dnl Use Jie Chens threads library
-AC_ARG_WITH(qmt,
-   AC_HELP_STRING(
-    [--with-qmt=<DIR>],
-    [Enable use of QMT Threads library installed in DIR]
-   ),
-   [ qmt_enabled="yes"
-     QMT_HOME=${with_qmt} ],
-   [ qmt_enabled="no" ]
-)
-dnl QMT Threads stuff
-if test "X${qmt_enabled}X" == "XyesX"; 
-then
-	AC_MSG_NOTICE([Configuring QMT Threading])
-	if test "X${omp_enabled}X" == "XyesX";
-	then 
-	  AC_MSG_ERROR([Cannot have OpenMP and QMT threading defined simultaneously])
-	else
-	  AC_DEFINE([QDP_USE_QMT_THREADS], [1], [ Use QMT Threads library ])
-	  AC_SUBST(QMT_HOME, "${QMT_HOME}")
-	  AC_MSG_NOTICE(QMT_HOME: ${QMT_HOME})
-	  AC_SUBST(QMT_CXXFLAGS, "-I${QMT_HOME}/include")
-	  AC_MSG_NOTICE(QMT_CXXFLAGS: ${QMT_CXXFLAGS})
-	  AC_SUBST(QMT_LDFLAGS, "-L${QMT_HOME}/lib")
-	  AC_MSG_NOTICE(QMT_LDFLAGS: ${QMT_LDFLAGS})
-	  AC_SUBST(QMT_LIBS, "-lqmt -lpthread -lm")
-	  AC_MSG_NOTICE(QMT_LIBS: ${QMT_LIBS})
-	fi
-else 
-	AC_SUBST(QMT_CXXFLAGS, "")
-	AC_SUBST(QMT_LDFLAGS, "")
-	AC_SUBST(QMT_LIBS, "")
-
-fi
-
-
-dnl Use OpenMP threading
-AC_ARG_ENABLE(openmp,
-   AC_HELP_STRING(
-    [--enable-openmp],
-    [Enable building of OpenMP dispatcher. Pass flags necessary for OpenMP on CFLAGS]
-   ),
-   [ omp_enabled="yes" ],
-   [ omp_enabled="no" ]
-)
-dnl OpenMP Threads stuff
-if test "X${omp_enabled}X" == "XyesX";
-then
-	AC_MSG_NOTICE([Configuring OpenMP Threading])
-	if test "X${qmt_enabled}X" == "XyesX";
-        then 
-          AC_MSG_ERROR([Cannot have OpenMP and QMT threading defined simultaneously])
-	fi
-	  
-	AC_DEFINE([QDP_USE_OMP_THREADS], [1], [ Use OpenMP Threads ])
-fi
 
 dnl
 dnl
@@ -697,19 +725,11 @@ AM_CONDITIONAL(BUILD_DEFAULT_ALLOCATOR,
   [test "X${ac_qcdoc_enabled}X" = "X0X"])
 
 #
-# Conditional for use qmt
-#
-AM_CONDITIONAL(QDP_USE_QMT_THREADS, [test "x${qmt_enabled}x" = "xyesx" ])
-#
-# Conditional for use omp
-#
-AM_CONDITIONAL(QDP_USE_OMP_THREADS, [test "x${omp_enabled}x" = "xyesx" ])
-#
 # Conditional for use of libxml
 if test "x${with_libxml2}x" != "xnox"; then
- echo True
+ echo "True, we use libxml2"
 else
- echo False
+ echo "False, we don't use libxml2"
 fi
 
 AM_CONDITIONAL(QDP_USE_LIBXML2, [test "x${with_libxml2}x" != "xnox" ])
@@ -717,6 +737,17 @@ AM_CONDITIONAL(QDP_USE_LIBXML2, [test "x${with_libxml2}x" != "xnox" ])
 AM_CONDITIONAL(QDP_USE_HDF5, [test "x${ac_build_hdf5}x" = "xyesx" ])
 
 AM_CONDITIONAL(QDP_CUSTOM_KERNELS, [test "x${ac_custom}x" = "xyesx" ])
+
+AM_CONDITIONAL(QDP_THRUSTALIGN, [test "x${ac_thrustalign}x" = "xyesx" ])
+
+AM_CONDITIONAL(QDP_CUDA_SPECIAL, [test "x${ac_cuda_special}x" = "xyesx" ])
+
+AM_CONDITIONAL(QDP_DEEP_LOG, [test "x${ac_deep_log}x" = "xyesx" ])
+
+AM_CONDITIONAL(QDP_BACKEND_CUDA, [test "x${backend_use}x" = "xCUDAx" ])
+
+AM_CONDITIONAL(QDP_BACKEND_ROCM, [test "x${backend_use}x" = "xROCMx" ])
+
 
 
 ##################################

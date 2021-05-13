@@ -23,19 +23,25 @@ namespace QDP {
 /*! Placeholder for no primitive structure */
   template<class T> class PScalarJIT : public BaseJIT<T,1>
   {
+#if 0
   private:
     template<class T1>
     PScalarJIT& operator=( const PScalarJIT<T1>& rhs);
     PScalarJIT& operator=( const PScalarJIT& rhs);
     //PScalarJIT( const PScalarJIT& rhs);
-
+#endif
+    
   public:
 
     // Default constructing should be possible
-    // then there is no need for MPL index when
-    // construction a PMatrix<T,N>
     PScalarJIT() {}
-    ~PScalarJIT() {}
+
+    // Copy constructor
+    PScalarJIT(const PScalarJIT& rhs): BaseJIT<T,1>(rhs)
+    {}
+    
+
+    //~PScalarJIT() {}
 
     template<class T1>
     PScalarJIT& operator=( const PScalarREG<T1>& rhs) {
@@ -378,15 +384,6 @@ struct BinaryReturn<PScalarJIT<T1>, PScalarJIT<T2>, OpRightShiftAssign > {
 };
 
 
-  
-template<class T1>
-inline typename UnaryReturn<PScalarJIT<T1>, FnIsFinite>::Type_t
-isfinite(const PScalarJIT<T1>& s1)
-{
-  return isfinite(s1.elem());
-}
-
-  
 
 #if 0
 
@@ -1477,6 +1474,19 @@ inline typename BinaryReturn<PScalarJIT<T1>, PScalarJIT<T2>, FnLocalInnerProduct
 localInnerProduct(const PScalarJIT<T1>& s1, const PScalarJIT<T2>& s2)
 {
   return localInnerProduct(s1.elem(), s2.elem());
+}
+
+
+template<class T1, class T2>
+struct BinaryReturn<PScalarJIT<T1>, PScalarJIT<T2>, FnLocalColorInnerProduct > {
+  typedef PScalarJIT<typename BinaryReturn<T1, T2, FnLocalColorInnerProduct>::Type_t>  Type_t;
+};
+
+template<class T1, class T2>
+inline typename BinaryReturn<PScalarJIT<T1>, PScalarJIT<T2>, FnLocalColorInnerProduct>::Type_t
+localInnerProduct(const PScalarJIT<T1>& s1, const PScalarJIT<T2>& s2)
+{
+  return localColorInnerProduct(s1.elem(), s2.elem());
 }
 
 

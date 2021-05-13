@@ -257,7 +257,6 @@ private:
 
 struct FnMapJIT
 {
-public:
   IndexRet index;
   const Map& map;
   //std::shared_ptr<RsrcWrapper> pRsrc;
@@ -267,7 +266,6 @@ public:
     index(i), map(fnmap.map), pRsrc(fnmap.pRsrc)  {}
   FnMapJIT(const FnMapJIT& f) : index(f.index), map(f.map) , pRsrc(f.pRsrc)  {}
 
-public:
   template<class T>
   inline typename UnaryReturn<T, FnMapJIT>::Type_t
   operator()(const T &a) const
@@ -276,16 +274,6 @@ public:
   }
 };
 
-
-
-#if defined(QDP_USE_PROFILING)   
-template <>
-struct TagVisitor<FnMap, PrintTag> : public ParenPrinter<FnMap>
-{ 
-  static void visit(FnMap op, PrintTag t) 
-    { t.os_m << "shift"; }
-};
-#endif
 
 
 
@@ -301,22 +289,22 @@ struct ForEach<UnaryNode<FnMap, A>, ParamLeaf, TreeCombine>
     inline
     static Type_t apply(const UnaryNode<FnMap, A>& expr, const ParamLeaf &p, const TreeCombine &c)
     {
-      //std::cout << __PRETTY_FUNCTION__ << ": entering\n";
-
-      //expr.operation().map;
-      //FnMap& fnmap = const_cast<FnMap&>(expr.operation());
-
-      typedef typename WordType<InnerType_t>::Type_t AWordType_t;
+      const Map& map = expr.operation().map;
+      FnMap& fnmap = const_cast<FnMap&>(expr.operation());
 
       IndexRet index_pack;
       index_pack.p_multi_index = llvm_add_param<int*>();
-      index_pack.p_recv_buf    = llvm_add_param<AWordType_t*>(); // This deduces it's type from A
 
+      if (map.hasOffnode())
+	{      
+	  typedef typename WordType<InnerType_t>::Type_t AWordType_t;
+	  index_pack.p_recv_buf    = llvm_add_param<AWordType_t*>(); // This deduces it's type from A
+	}
+      
       return Type_t( FnMapJIT( expr.operation() , index_pack ) , 
 		     ForEach< A, ParamLeaf, TreeCombine >::apply( expr.child() , p , c ) );
     }
   };
-
 
 
 
@@ -329,61 +317,98 @@ struct ForEach<UnaryNode<FnMapJIT, A>, ViewLeaf, OpCombine>
     inline
     static Type_t apply(const UnaryNode<FnMapJIT, A>& expr, const ViewLeaf &v, const OpCombine &o)
     {
-      Type_t ret;
-      Type_t ret_phi0;
-      Type_t ret_phi1;
+      if (expr.operation().map.hasOffnode())
+	{
+	  Type_t ret;
 
-      IndexRet index = expr.operation().index;
-
-      llvm::Value * r_multi_index = llvm_array_type_indirection( index.p_multi_index , v.getIndex() );
+	  //
+	  // Setup an object (of return type) on the stack
+	  //
+	  auto ret_stack = stack_alloc<Type_t>();
       
-      llvm::BasicBlock * block_in_buffer = llvm_new_basic_block();
-      llvm::BasicBlock * block_not_in_buffer = llvm_new_basic_block();
-      llvm::BasicBlock * block_in_buffer_exit = llvm_new_basic_block();
-      llvm_cond_branch( llvm_lt( r_multi_index , 
-				 llvm_create_value(0) ) , 
-			block_in_buffer , 
-			block_not_in_buffer );
-      {
-	llvm_set_insert_point(block_in_buffer);
-	llvm::Value *idx_buf = llvm_sub ( llvm_neg ( r_multi_index ) , llvm_create_value(1) );
+	  IndexRet index = expr.operation().index;
 
-	IndexDomainVector args;
-	args.push_back( make_pair( Layout::sitesOnNode() , idx_buf ) );
-	args.push_back( make_pair( 1 , llvm_create_value(0) ) );
+	  llvm::Value * r_multi_index = llvm_array_type_indirection( index.p_multi_index , v.getIndex() );
 
-	typename JITType<Type_t>::Type_t t_jit_recv;
-	t_jit_recv.setup( llvm_derefParam(index.p_recv_buf) ,
-			  JitDeviceLayout::Scalar ,
-			  args );
+	  JitIf inRecvBuffer( llvm_lt( r_multi_index , llvm_create_value(0) ) );
+	  {
+	    llvm::Value *idx_buf = llvm_sub ( llvm_neg ( r_multi_index ) , llvm_create_value(1) );
 
-	ret_phi0.setup( t_jit_recv );
-	
-	llvm_branch( block_in_buffer_exit );
-      }
-      {
-	llvm_set_insert_point(block_not_in_buffer);
+	    IndexDomainVector args;
+	    args.push_back( make_pair( Layout::sitesOnNode() , idx_buf ) );
+	    args.push_back( make_pair( 1 , llvm_create_value(0) ) );
 
-	ViewLeaf vv( JitDeviceLayout::Coalesced , r_multi_index );
-	ret_phi1 = Combine1<TypeA_t, 
-			    FnMapJIT , 
-			    OpCombine>::combine(ForEach<A, ViewLeaf, OpCombine>::apply(expr.child(), vv, o) , 
-						expr.operation(), o);
+	    typename JITType<Type_t>::Type_t t_jit_recv;
+	    t_jit_recv.setup( llvm_derefParam(index.p_recv_buf) ,
+			      JitDeviceLayout::Scalar ,
+			      args );
 
-	llvm_branch( block_in_buffer_exit );
-      }
-      llvm_set_insert_point(block_in_buffer_exit);
+	    Type_t tmp;
+	    tmp.setup( t_jit_recv );
 
-      qdpPHI( ret , 
-	      ret_phi0 , block_in_buffer ,
-	      ret_phi1 , block_not_in_buffer );
+	    ret_stack = tmp;
+	  }
+	  inRecvBuffer.els();
+	  {
+	    ViewLeaf vv( JitDeviceLayout::Coalesced , r_multi_index );
+	    Type_t tmp = Combine1<TypeA_t, 
+				  FnMapJIT , 
+				  OpCombine>::combine(ForEach<A, ViewLeaf, OpCombine>::apply(expr.child(), vv, o) , 
+						      expr.operation(), o);
 
-      return ret;
+
+	    ret_stack = tmp;
+	  }
+	  inRecvBuffer.end();
+      
+	  //
+	  // Now read the object from the stack into a REG container
+	  //
+	  ret.setup( ret_stack );
+      
+	  return ret;
+	}
+      else
+	{
+	  IndexRet index = expr.operation().index;
+
+	  llvm::Value * r_multi_index = llvm_array_type_indirection( index.p_multi_index , v.getIndex() );
+
+	  ViewLeaf vv( JitDeviceLayout::Coalesced , r_multi_index );
+
+	  return Combine1<TypeA_t, 
+			  FnMapJIT , 
+			  OpCombine>::combine(ForEach<A, ViewLeaf, OpCombine>::apply(expr.child(), vv, o) , 
+					      expr.operation(), o);
+
+	}
     }
   };
 
 
 
+template<class A>
+struct ForEach<UnaryNode<FnMap, A>, DynKeyTag , OrCombine>
+{
+  typedef typename ForEach< A , DynKeyTag, OrCombine>::Type_t Type_t;
+  inline
+  static Type_t apply(const UnaryNode<FnMap, A>& expr, const DynKeyTag& a, const OrCombine &n)
+  {
+    const Map& map = expr.operation().map;
+    FnMap& fnmap = const_cast<FnMap&>(expr.operation());
+
+    a.key.add( map.hasOffnode() ? 1 : 0 );
+
+#if 0
+    if (map.hasOffnode())
+      QDPIO::cout << "PETE: offnode\n";
+    else
+      QDPIO::cout << "PETE: local\n";
+#endif
+    
+    return map.hasOffnode() || ForEach<A, DynKeyTag , OrCombine>::apply( expr.child() , a , n );
+  }
+};
 
 
 
@@ -404,27 +429,11 @@ struct ForEach<UnaryNode<FnMap, A>, AddressLeaf, NullCombine>
       
       a.setId( expr.operation().map.getGoffsetsId(a.subset) );
 
-#if 0
-      void * rcvBuf = NULL;
-      if (map.hasOffnode()) {
-	const FnMapRsrc& rRSrc = fnmap.getCached();
-	rcvBuf = rRSrc.getRecvBufDevPtr();
-      }
-      a.setAddr(rcvBuf);
-#else
-#if 0
-      //int rid = map.hasOffnode() ? fnmap.getCached().getRecvBufId() : -1;
-      int rid = -1;
-      //void * rcvBuf = NULL;
-      if (map.hasOffnode()) {
-	const FnMapRsrc& rRSrc = fnmap.getCached();
-	//rRSrc.getRecvBufDevPtr();
-	rid = rRSrc.getRecvBufId();
-      }
-#endif
-      a.setId( map.hasOffnode() ? fnmap.getCached().getRecvBufId() : -1 );
-#endif
-
+      if (map.hasOffnode())
+	{
+	  a.setId( fnmap.getCached().getRecvBufId() );
+	}
+      
       return Type_t( ForEach<A, AddressLeaf, NullCombine>::apply( expr.child() , a , n ) );
     }
   };
@@ -471,11 +480,11 @@ struct ForEach<UnaryNode<FnMap, A>, ShiftPhase1 , BitOrCombine>
 	  // forEach(subexpr, phase2 , NullCombine());
 	}
 
-	static CUfunction function;
+	static JitFunction function;
 
-	if (function == NULL)
+	if (function.empty())
 	  {
-	    function = function_gather_build<InnerType_t>( subexpr );
+	    function_gather_build<InnerType_t>( function , subexpr );
 	  }
 
 	function_gather_exec(function, rRSrc.getSendBufId() , map , subexpr , f.subset );
@@ -721,22 +730,22 @@ private:
 };
 
 
-// Add this code if you need CPU shifts
-template<class A, class CTag>
-struct ForEach<UnaryNode<FnMap, A>, EvalLeaf1, CTag>
-{
-  typedef typename ForEach<A, EvalLeaf1, CTag>::Type_t TypeA_t;
-  typedef typename Combine1<TypeA_t, FnMap, CTag>::Type_t Type_t;
-  inline static
-  Type_t apply(const UnaryNode<FnMap, A> &expr, const EvalLeaf1 &f, const CTag &c)
-  {
-    const Map& map = expr.operation().map;
-    FnMap& fnmap = const_cast<FnMap&>(expr.operation());
+// // Add this code if you need CPU shifts
+// template<class A, class CTag>
+// struct ForEach<UnaryNode<FnMap, A>, EvalLeaf1, CTag>
+// {
+//   typedef typename ForEach<A, EvalLeaf1, CTag>::Type_t TypeA_t;
+//   typedef typename Combine1<TypeA_t, FnMap, CTag>::Type_t Type_t;
+//   inline static
+//   Type_t apply(const UnaryNode<FnMap, A> &expr, const EvalLeaf1 &f, const CTag &c)
+//   {
+//     const Map& map = expr.operation().map;
+//     FnMap& fnmap = const_cast<FnMap&>(expr.operation());
     
-    EvalLeaf1 ff( map.goffsets[f.val1()] );
-    return Combine1<TypeA_t, FnMap, CTag>::combine(ForEach<A, EvalLeaf1, CTag>::apply(expr.child(), ff, c),expr.operation(), c);
-  }
-};
+//     EvalLeaf1 ff( map.goffsets[f.val1()] );
+//     return Combine1<TypeA_t, FnMap, CTag>::combine(ForEach<A, EvalLeaf1, CTag>::apply(expr.child(), ff, c),expr.operation(), c);
+//   }
+// };
 
 
 

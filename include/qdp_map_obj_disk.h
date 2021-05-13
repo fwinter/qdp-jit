@@ -8,7 +8,8 @@
 #define __qdp_map_obj_disk_h__
 
 #include "qdp_map_obj.h"
-#include <tr1/unordered_map>
+#include <limits>
+#include <unordered_map>
 
 namespace QDP
 {
@@ -24,7 +25,7 @@ namespace QDP
 
     //! Check if this will be a new file
     bool checkForNewFile(const std::string& filename, std::ios_base::openmode mode);
-  }
+  };
 
 
 
@@ -36,7 +37,7 @@ namespace QDP
   {
   public:
     //! Empty constructor
-    MapObjectDisk() : state(INIT), file_version(1), level(0) {}
+    MapObjectDisk() : file_version(1), state(INIT), level(0) {}
 
     //! Finalizes object
     ~MapObjectDisk();
@@ -123,14 +124,16 @@ namespace QDP
 
   private:
     //! Sometime ago, chose 16 bytes for stream positions. Yup, really big.
-    union priv_pos_type_t
-    {
-      unsigned char     c[16];
-      uint64_t          p;
-    };
+    /**
+     * NOTE: the intention was to simulate an uint128_t with a pair of uint64_t
+     * where the most significant bytes were set to zero always. But the code
+     * was not correctly ported to little endian machines and the positions have
+     * been stored on the most significant uint64_t.
+     */
+    typedef std::array<uint64_t, 2> priv_pos_type_t;
 
     //! Type for the map
-    typedef std::tr1::unordered_map<std::string, priv_pos_type_t> MapType_t;
+    typedef std::unordered_map<std::string, priv_pos_type_t> MapType_t;
 
     //! State 
     enum State {INIT, UNCHANGED, MODIFIED};
@@ -155,7 +158,7 @@ namespace QDP
 
     //! Reader and writer interfaces
     mutable BinaryFileReaderWriter streamer;
-    
+
     //! Convert to known size
     priv_pos_type_t convertToPrivate(const pos_type& input) const;
 
@@ -207,9 +210,18 @@ namespace QDP
   typename MapObjectDisk<K,V>::priv_pos_type_t
   MapObjectDisk<K,V>::convertToPrivate(const pos_type& input) const
   {
-    priv_pos_type_t f;
-    f.p = static_cast<uint64_t>(input);
-    return f;
+    // NOTE: pos_type is an opaque type, so it is not easy to know the maximum
+    // number that can hold. pos_type_bigger tries to guess whether pos_type
+    // can hold larger numbers than uint64_t, assuming that pos_type can hold
+    // at least any uint64_t number
+    const pos_type zero = pos_type(0u), one = pos_type(1u),
+		   max_uint64 = pos_type(std::numeric_limits<uint64_t>::max()),
+		   max_uint64_p1 = max_uint64 + one;
+    bool pos_type_bigger = (max_uint64 != pos_type(-1) && max_uint64 < max_uint64_p1);
+    uint64_t less = (pos_type_bigger ? uint64_t(input % max_uint64_p1) : uint64_t(input));
+    uint64_t more = (pos_type_bigger ? uint64_t(input / max_uint64_p1) : uint64_t(0u));
+    // NOTE comment on priv_pos_type_t
+    return (QDPUtil::big_endian() ? priv_pos_type_t{more, less} : priv_pos_type_t{less, more});
   }
 
   //! Convert from known size
@@ -217,7 +229,24 @@ namespace QDP
   typename MapObjectDisk<K,V>::pos_type 
   MapObjectDisk<K,V>::convertFromPrivate(const priv_pos_type_t& input) const
   {
-    return static_cast<pos_type>(input.p);
+    // NOTE: pos_type is an opaque type, so it is not easy to know the maximum
+    // number that can hold. pos_type_bigger tries to guess whether pos_type
+    // can hold larger numbers than uint64_t, assuming that pos_type can hold
+    // at least any uint64_t number
+    const pos_type zero = pos_type(0u), one = pos_type(1u),
+		   max_uint64 = pos_type(std::numeric_limits<uint64_t>::max()),
+		   max_uint64_p1 = max_uint64 + one;
+    bool pos_type_bigger = (max_uint64 != pos_type(-1) && max_uint64 < max_uint64_p1);
+    pos_type modulo = pos_type_bigger ? max_uint64_p1 : zero;
+    // NOTE comment on priv_pos_type_t
+    pos_type out;
+    if (!QDPUtil::big_endian())
+      out = pos_type(input[0]) + pos_type(input[1]) * modulo;
+    else
+      out = pos_type(input[1]) + pos_type(input[0]) * modulo;
+    if (out == pos_type(-1))
+      QDP_error_exit("File position does not fit in pos_type");
+    return out;
   }
 
 
@@ -248,7 +277,7 @@ namespace QDP
       filename = file;
 
       QDPIO::cout << "MapObjectDisk: opening file " << filename
-		  << " for writing" << endl;
+		  << " for writing" << std::endl;
       
       streamer.open(filename, mode);
           
@@ -261,29 +290,29 @@ namespace QDP
       }
 
       if (level >= 2) {
-	QDPIO::cout << "Writing file magic: len= " << MapObjDiskEnv::getFileMagic().length() << endl;
+	QDPIO::cout << "Writing file magic: len= " << MapObjDiskEnv::getFileMagic().length() << std::endl;
       }
 
       // Write string
       streamer.writeDesc(MapObjDiskEnv::getFileMagic());
       
       if (level >= 2) {
-	QDPIO::cout << "Wrote magic. Current Position: " << streamer.currentPosition() << endl;
+	QDPIO::cout << "Wrote magic. Current Position: " << streamer.currentPosition() << std::endl;
       }
       
       write(streamer, (MapObjDiskEnv::file_version_t)file_version);
     
       if (level >= 2) {
-	QDPIO::cout << "Wrote Version. Current Position is: " << streamer.currentPosition() << endl;
+	QDPIO::cout << "Wrote Version. Current Position is: " << streamer.currentPosition() << std::endl;
       }
       
       if (level >= 2) {
-	QDPIO::cout << "Writing User Data string=" << user_data << endl;
+	QDPIO::cout << "Writing User Data string=" << user_data << std::endl;
       }
       writeDesc(streamer, user_data);
       
       if (level >= 2) {
-	QDPIO::cout << "Wrote User Data string. Current Position is: " << streamer.currentPosition() << endl;
+	QDPIO::cout << "Wrote User Data string. Current Position is: " << streamer.currentPosition() << std::endl;
       }
       
       priv_pos_type_t dummypos = convertToPrivate(streamer.currentPosition());
@@ -292,18 +321,18 @@ namespace QDP
 	int user_len = user_data.length();
 	QDPInternal::broadcast(user_len);
 
-	QDPIO::cout << "Sanity Check 1" << endl; ;
-	uint64_t cur_pos = convertToPrivate(streamer.currentPosition()).p;
-	uint64_t exp_pos = 
+	QDPIO::cout << "Sanity Check 1" << std::endl; ;
+	pos_type cur_pos = streamer.currentPosition();
+	pos_type exp_pos = 
 	  MapObjDiskEnv::getFileMagic().length()+sizeof(int)
 	  +user_len+sizeof(int)
 	  +sizeof(MapObjDiskEnv::file_version_t);
 
-	QDPIO::cout << "cur pos=" << (size_t)(cur_pos) << " expected " << (size_t)(exp_pos) << endl;
+	QDPIO::cout << "cur pos=" << (size_t)(cur_pos) << " expected " << (size_t)(exp_pos) << std::endl;
 
 	if ( cur_pos != exp_pos ) {
-	  QDPIO::cout << "ERROR: Sanity Check 1 failed." << endl;
-	  QDPIO::cout << "cur pos=" << (size_t)(cur_pos) << " expected " << (size_t)(exp_pos) << endl;
+	  QDPIO::cout << "ERROR: Sanity Check 1 failed." << std::endl;
+	  QDPIO::cout << "cur pos=" << (size_t)(cur_pos) << " expected " << (size_t)(exp_pos) << std::endl;
 	  QDP_abort(1);
 	}
       }
@@ -312,25 +341,25 @@ namespace QDP
       streamer.writeArray((char *)&dummypos, sizeof(priv_pos_type_t), 1);
       
       if (level >= 2) {
-	QDPIO::cout << "Wrote dummy link: Current Position " << streamer.currentPosition() << endl;
+	QDPIO::cout << "Wrote dummy link: Current Position " << streamer.currentPosition() << std::endl;
 	int user_len = user_data.length();
 	QDPInternal::broadcast(user_len);
 
-	QDPIO::cout << "Sanity Check 2" << endl;
-	uint64_t cur_pos = convertToPrivate(streamer.currentPosition()).p;
-	uint64_t exp_pos = 
+	QDPIO::cout << "Sanity Check 2" << std::endl;
+	pos_type cur_pos = streamer.currentPosition();
+	pos_type exp_pos = 
 	  MapObjDiskEnv::getFileMagic().length()+sizeof(int)
 	  +user_len+sizeof(int)
 	  +sizeof(MapObjDiskEnv::file_version_t)
 	  +sizeof(priv_pos_type_t);
 
 	if ( cur_pos != exp_pos ) {
-	  QDPIO::cout << "Cur pos = " << (size_t)(cur_pos) << endl;
-	  QDPIO::cout << "Expected: " << (size_t)(exp_pos) << endl;
-	  QDPIO::cout << "ERROR: Sanity Check 2 failed." << endl;
+	  QDPIO::cout << "Cur pos = " << (size_t)(cur_pos) << std::endl;
+	  QDPIO::cout << "Expected: " << (size_t)(exp_pos) << std::endl;
+	  QDPIO::cout << "ERROR: Sanity Check 2 failed." << std::endl;
 	  QDP_abort(1);
 	}
-	QDPIO::cout << "Finished sanity Check 2" << endl;
+	QDPIO::cout << "Finished sanity Check 2" << std::endl;
       }
       
       // Advance state machine state
@@ -359,17 +388,17 @@ namespace QDP
       filename = file;
 
       QDPIO::cout << "MapObjectDisk: opening file " << filename
-		  << " for reading" << endl;
+		  << " for reading" << std::endl;
       
       // Open the reader
       streamer.open(filename, mode);
 	
-      QDPIO::cout << "MapObjectDisk: reading and checking header" << endl;
+      QDPIO::cout << "MapObjectDisk: reading and checking header" << std::endl;
 
       priv_pos_type_t md_start = readCheckHeader();
 	
       // Seek to metadata
-      QDPIO::cout << "MapObjectDisk: reading key/fileposition data" << endl;
+      QDPIO::cout << "MapObjectDisk: reading key/fileposition data" << std::endl;
 	
       /* Read the map in (metadata) */
       readMapBinary(md_start);
@@ -546,25 +575,25 @@ namespace QDP
 	// Key does exist
 	pos_type wpos = convertFromPrivate(key_ptr->second);
 	if (level >= 2) {
-	  QDPIO::cout << "Found key to update. Position is " << wpos << endl;
+	  QDPIO::cout << "Found key to update. Position is " << wpos << std::endl;
 	}
 	
 	streamer.seek(wpos);
 	
 	if (level >= 2) {
-	  QDPIO::cout << "Sought write position. Current Position: " << streamer.currentPosition() << endl;
+	  QDPIO::cout << "Sought write position. Current Position: " << streamer.currentPosition() << std::endl;
 	}
 	streamer.resetChecksum(); // Reset checksum. It gets calculated on write.
 	write(streamer, val);
 	
 	if (level >= 2) {	
-	  QDPIO::cout << "Wrote value to disk. Current Position: " << streamer.currentPosition() << endl;
+	  QDPIO::cout << "Wrote value to disk. Current Position: " << streamer.currentPosition() << std::endl;
 	}
 	write(streamer, streamer.getChecksum()); // Write Checksum
 	streamer.flush(); // Sync the file
 	
 	if (level >= 2) {
-	  QDPIO::cout << "Wrote checksum " << streamer.getChecksum() << " to disk. Current Position: " << streamer.currentPosition() << endl;
+	  QDPIO::cout << "Wrote checksum " << streamer.getChecksum() << " to disk. Current Position: " << streamer.currentPosition() << std::endl;
 	}
 
 	// Done
@@ -574,11 +603,11 @@ namespace QDP
 	// Key does not exist
 
 	// Make note of current writer position
-	priv_pos_type_t pos = convertToPrivate(streamer.currentPosition());
+	pos_type pos = streamer.currentPosition();
       
 	// Insert pos into map
-	src_map.insert(std::make_pair(bin.str(),pos));
-     
+	src_map.insert(std::make_pair(bin.str(), convertToPrivate(pos)));
+
 	streamer.resetChecksum();
 
 	// Add position to the map
@@ -591,22 +620,22 @@ namespace QDP
      
 	// Get diagnostics.
 	if (level >= 1) {
-	  priv_pos_type_t end_pos = convertToPrivate(streamer.currentPosition());
-	  double MiBWritten = (double)(end_pos.p - pos.p)/(double)(1024*1024);
+	  pos_type end_pos = streamer.currentPosition();
+	  double MiBWritten = (double)(end_pos - pos)/(double)(1024*1024);
 	  double time = swatch.getTimeInSeconds();
 
-	  QDPIO::cout << " wrote: " << MiBWritten << " MiB. Time: " << time << " sec. Write Bandwidth: " << MiBWritten/time<<endl;
+	  QDPIO::cout << " wrote: " << MiBWritten << " MiB. Time: " << time << " sec. Write Bandwidth: " << MiBWritten/time<<std::endl;
         }
 
 	if (level >= 2) {
-	  QDPIO::cout << "Wrote value to disk. Current Position: " << streamer.currentPosition() << endl;
+	  QDPIO::cout << "Wrote value to disk. Current Position: " << streamer.currentPosition() << std::endl;
 	}
 
 	write(streamer, streamer.getChecksum()); // Write Checksum
 	streamer.flush();
 	
 	if (level >= 2) {
-	  QDPIO::cout << "Wrote checksum " << streamer.getChecksum() << " to disk. Current Position: " << streamer.currentPosition() << endl;
+	  QDPIO::cout << "Wrote checksum " << streamer.getChecksum() << " to disk. Current Position: " << streamer.currentPosition() << std::endl;
 	}
 
 	// Done
@@ -643,14 +672,14 @@ namespace QDP
       if (key_ptr != src_map.end())
       {
 	// If key exists find file offset
-	priv_pos_type_t pos = key_ptr->second;
+	pos_type pos = convertFromPrivate(key_ptr->second);
 
 	// Do the seek and time it 
 	StopWatch swatch;
 
 	swatch.reset();
 	swatch.start();
-	streamer.seek(convertFromPrivate(pos));
+	streamer.seek(pos);
 	swatch.stop();
 	double seek_time = swatch.getTimeInSeconds();
 
@@ -658,7 +687,7 @@ namespace QDP
 	streamer.resetChecksum();
 
 	// Grab start pos: We've just seeked it
-	priv_pos_type_t start_pos = pos;
+	pos_type start_pos = pos;
 
 	// Time the read
 	swatch.reset();
@@ -667,19 +696,19 @@ namespace QDP
 	swatch.stop();
 
 	double read_time = swatch.getTimeInSeconds();
-	priv_pos_type_t end_pos = convertToPrivate(streamer.currentPosition());
+	pos_type end_pos = streamer.currentPosition();
 
 	// Print data
 	if (level >= 1) { 
-	  double MiBRead = (double)(end_pos.p - start_pos.p)/(double)(1024*1024);
+	  double MiBRead = (double)(end_pos - start_pos)/(double)(1024*1024);
 	  QDPIO::cout << " seek time: " << seek_time 
 	  	      << " sec. read time: " << read_time 
-		      << "  " << MiBRead <<" MiB, " << MiBRead/read_time << " MiB/sec" << endl;
+		      << "  " << MiBRead <<" MiB, " << MiBRead/read_time << " MiB/sec" << std::endl;
         }
 
 
 	if (level >= 2) { 
-	  QDPIO::cout << "Read record. Current position: " << streamer.currentPosition() << endl;
+	  QDPIO::cout << "Read record. Current position: " << streamer.currentPosition() << std::endl;
 	}
 
 	QDPUtil::n_uint32_t calc_checksum=streamer.getChecksum();
@@ -687,16 +716,16 @@ namespace QDP
 	read(streamer, read_checksum);
 
 	if (level >= 2) {
-	  QDPIO::cout << " Record checksum: " << read_checksum << "  Current Position: " << streamer.currentPosition() << endl;
+	  QDPIO::cout << " Record checksum: " << read_checksum << "  Current Position: " << streamer.currentPosition() << std::endl;
 	}
 
 	if( read_checksum != calc_checksum ) { 
-	  QDPIO::cout << "Mismatched Checksums: Expected: " << calc_checksum << " but read " << read_checksum << endl;
+	  QDPIO::cout << "Mismatched Checksums: Expected: " << calc_checksum << " but read " << read_checksum << std::endl;
 	  QDP_abort(1);
 	}
 
 	if (level >= 2) {
-	  QDPIO::cout << "  Checksum OK!" << endl;
+	  QDPIO::cout << "  Checksum OK!" << std::endl;
 	}
       }
       else {
@@ -749,7 +778,7 @@ namespace QDP
 		       + sizeof(MapObjDiskEnv::file_version_t) );
       }
       else { 
-	QDPIO::cerr << "Attempting writeSkipHeader, not in write mode" <<endl;
+	QDPIO::cerr << "Attempting writeSkipHeader, not in write mode" <<std::endl;
 	QDP_abort(1);
       }
     }
@@ -765,13 +794,12 @@ namespace QDP
   typename MapObjectDisk<K,V>::priv_pos_type_t
   MapObjectDisk<K,V>::readCheckHeader(void) 
   {
-    priv_pos_type_t md_position;
-    bzero(&md_position.c, sizeof(priv_pos_type_t));
+    priv_pos_type_t md_position{0, 0};
 
     if( streamer.is_open() ) 
     {
       if (level >= 2) {
-	QDPIO::cout << "Rewinding File" << endl;
+	QDPIO::cout << "Rewinding File" << std::endl;
       }
       
       streamer.rewind();
@@ -782,43 +810,43 @@ namespace QDP
       // Check magic
       if (read_magic != MapObjDiskEnv::getFileMagic()) { 
 	QDPIO::cerr << "Magic String Wrong: Expected: " << MapObjDiskEnv::getFileMagic() 
-		    << " but read: " << read_magic << endl;
+		    << " but read: " << read_magic << std::endl;
 	QDP_abort(1);
       }
 
       if (level >= 2) {
-	QDPIO::cout << "Read File Magic. Current Position: " << streamer.currentPosition() << endl;
+	QDPIO::cout << "Read File Magic. Current Position: " << streamer.currentPosition() << std::endl;
       }
       
       MapObjDiskEnv::file_version_t read_version;
       read(streamer, read_version);
       
       if (level >= 2) {
-	QDPIO::cout << "Read File Verion. Current Position: " << streamer.currentPosition() << endl;
+	QDPIO::cout << "Read File Verion. Current Position: " << streamer.currentPosition() << std::endl;
       }
       
       // Check version
-      QDPIO::cout << "MapObjectDisk: file has version: " << read_version << endl;
+      QDPIO::cout << "MapObjectDisk: file has version: " << read_version << std::endl;
       
       QDP::readDesc(streamer, user_data);
       if (level >= 2) {
-	QDPIO::cout << "User data. String=" << user_data << ". Current Position: " << streamer.currentPosition() << endl;
+	QDPIO::cout << "User data. String=" << user_data << ". Current Position: " << streamer.currentPosition() << std::endl;
       }
       
       // Read MD location
       streamer.readArray((char *)&md_position, sizeof(priv_pos_type_t), 1);
 
       if (level >= 2) {
-	QDPIO::cout << "Read MD Location. Current position: " << streamer.currentPosition() << endl;
+	QDPIO::cout << "Read MD Location. Current position: " << streamer.currentPosition() << std::endl;
       }
       
       if (level >= 2) {
-	QDPIO::cout << "Metadata starts at position: " << convertFromPrivate(md_position) << endl;
+	QDPIO::cout << "Metadata starts at position: " << convertFromPrivate(md_position) << std::endl;
       }
 	
     }
     else { 
-      QDPIO::cerr << "readCheckHeader needs reader mode to be opened. It is not" << endl;
+      QDPIO::cerr << "readCheckHeader needs reader mode to be opened. It is not" << std::endl;
       QDP_abort(1);
     }
 
@@ -836,7 +864,7 @@ namespace QDP
     streamer.resetChecksum();
     write(streamer, map_size);
     if (level >= 2) {
-      QDPIO::cout << "Wrote map size: " << map_size << " entries.  Current position : " << streamer.currentPosition() << endl;
+      QDPIO::cout << "Wrote map size: " << map_size << " entries.  Current position : " << streamer.currentPosition() << std::endl;
     }
     
     typename MapType_t::const_iterator iter;
@@ -850,11 +878,11 @@ namespace QDP
       streamer.writeArray((char *)&pos,sizeof(priv_pos_type_t),1);
       
       if (level >= 2) {
-	QDPIO::cout << "Wrote Key/Position pair:  Current Position: " << streamer.currentPosition() << endl;
+	QDPIO::cout << "Wrote Key/Position pair:  Current Position: " << streamer.currentPosition() << std::endl;
       }
     }
     write(streamer, streamer.getChecksum());
-    QDPIO::cout << "Wrote Checksum On Map: " << streamer.getChecksum() << endl;
+    QDPIO::cout << "Wrote Checksum On Map: " << streamer.getChecksum() << std::endl;
     streamer.flush();
   }
   
@@ -869,14 +897,14 @@ namespace QDP
     streamer.resetChecksum();
 
     if (level >= 2) {
-      QDPIO::cout << "Sought start of metadata. Current position: " << streamer.currentPosition() << endl;
+      QDPIO::cout << "Sought start of metadata. Current position: " << streamer.currentPosition() << std::endl;
     }
     
     unsigned int num_records;
     read(streamer, num_records);
 
     if (level >= 2) {
-      QDPIO::cout << "Read num of entries: " << num_records << " records. Current Position: " << streamer.currentPosition() << endl;
+      QDPIO::cout << "Read num of entries: " << num_records << " records. Current Position: " << streamer.currentPosition() << std::endl;
     }
     
     for(unsigned int i=0; i < num_records; i++) 
@@ -888,7 +916,7 @@ namespace QDP
       streamer.readArray((char *)&rpos, sizeof(priv_pos_type_t),1);
       
       if (level >= 2) {
-	QDPIO::cout << "Read Key/Position pair. Current position: " << streamer.currentPosition() << endl;
+	QDPIO::cout << "Read Key/Position pair. Current position: " << streamer.currentPosition() << std::endl;
       }
       // Add position to the map
       src_map.insert(std::make_pair(key_str,rpos));
@@ -901,12 +929,12 @@ namespace QDP
       QDPIO::cout << "Read Map checksum: " << read_checksum << "  Current Position: " << streamer.currentPosition();
     }
     if( read_checksum != calc_checksum ) { 
-      QDPIO::cout << "Mismatched Checksums: Expected: " << calc_checksum << " but read " << read_checksum << endl;
+      QDPIO::cout << "Mismatched Checksums: Expected: " << calc_checksum << " but read " << read_checksum << std::endl;
       QDP_abort(1);
     }
 
     if (level >= 2) {
-      QDPIO::cout << " Map Checksum OK!" << endl;
+      QDPIO::cout << " Map Checksum OK!" << std::endl;
     }
   }
 
@@ -925,7 +953,7 @@ namespace QDP
     case MODIFIED:
     {
       if (level >= 2) {
-	QDPIO::cout << "Beginning closeWrite: current position: " << streamer.currentPosition() << endl;
+	QDPIO::cout << "Beginning closeWrite: current position: " << streamer.currentPosition() << std::endl;
       }
 
       // Go to end of file
@@ -935,7 +963,7 @@ namespace QDP
       priv_pos_type_t metadata_start = convertToPrivate(streamer.currentPosition());
 	
       if (level >= 2) {
-	QDPIO::cout << "CloseWrite: Metadata starts at position: " << convertFromPrivate(metadata_start) << endl;
+	QDPIO::cout << "CloseWrite: Metadata starts at position: " << convertFromPrivate(metadata_start) << std::endl;
       }
 
       // Dump metadata
@@ -944,24 +972,24 @@ namespace QDP
       // Rewind and Skip header 
       streamer.rewind();
       if (level >= 2) {
-	QDPIO::cout << "Rewound file. Current Position: " << streamer.currentPosition() << endl;
+	QDPIO::cout << "Rewound file. Current Position: " << streamer.currentPosition() << std::endl;
       }
       writeSkipHeader();
       if (level >= 2) {
-	QDPIO::cout << "Skipped Header. Current Position: " << streamer.currentPosition() << endl;
+	QDPIO::cout << "Skipped Header. Current Position: " << streamer.currentPosition() << std::endl;
       }
       // write start position of metadata
       streamer.writeArray((const char *)&metadata_start,sizeof(priv_pos_type_t),1);
 	
       if (level >= 2) {
-	QDPIO::cout << "Wrote link to metadata. Current Position: " << streamer.currentPosition() << endl;
+	QDPIO::cout << "Wrote link to metadata. Current Position: " << streamer.currentPosition() << std::endl;
       }
 	
       // skip to end and close
       streamer.seekEnd(0);
       streamer.flush();
 	
-      QDPIO::cout << "MapObjectDisk: Closed file " << filename<< " for write access" <<  endl;
+      QDPIO::cout << "MapObjectDisk: Closed file " << filename<< " for write access" <<  std::endl;
     }
     break;
     default:

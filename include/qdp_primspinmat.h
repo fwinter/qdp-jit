@@ -53,6 +53,19 @@ public:
 
 };
 
+
+
+  template<class T, int N>
+  struct FirstWord<PSpinMatrix<T,N> >
+  {
+    static typename WordType<T>::Type_t get(const PSpinMatrix<T,N>& a)
+    {
+      return FirstWord<T>::get(a.elem(0,0));
+    }
+  };
+
+
+  
 /*! @} */   // end of group primspinmatrix
 
 
@@ -255,6 +268,11 @@ struct BinaryReturn<PSpinMatrix<T1,N>, PSpinMatrix<T2,N>, FnLocalInnerProduct> {
   typedef PScalar<typename BinaryReturn<T1, T2, FnLocalInnerProduct>::Type_t>  Type_t;
 };
 
+template<class T1, class T2, int N>
+struct BinaryReturn<PSpinMatrix<T1,N>, PSpinMatrix<T2,N>, FnLocalColorInnerProduct> {
+  typedef PSpinMatrix<typename BinaryReturn<T1, T2, FnLocalColorInnerProduct>::Type_t, N>  Type_t;
+};
+  
 template<class T1, class T2, int N>
 struct BinaryReturn<PSpinMatrix<T1,N>, PScalar<T2>, FnLocalInnerProduct> {
   typedef PScalar<typename BinaryReturn<T1, T2, FnLocalInnerProduct>::Type_t>  Type_t;
@@ -1815,6 +1833,22 @@ quarkContract34(const PSpinMatrix<T1,4>& s1, const PSpinMatrix<T2,4>& s2)
   return d;
 }
 
+
+// Output
+//! Ascii output
+template<class T, int N>  
+inline
+StandardOutputStream& operator<<(StandardOutputStream& s, const PSpinMatrix<T,N>& d)
+{
+  for(int j=0; j < N; ++j) {
+    for(int i=0; i < N; ++i)
+      s << d.elem(i,j);
+    s << "\n";
+  }
+  return s;
+}
+
+  
 /*! @} */   // end of group primspinmatrix
 
 } // namespace QDP

@@ -14,17 +14,24 @@ namespace QDP {
 //-----------------------------------------------------------------------------
 namespace Layout
 {
+
+  namespace {
+    std::vector< std::shared_ptr<LatticeInteger> > latCoord(Nd);
+  }
+
+  void destroyLatticeCoordinate()
+  {
+    latCoord.clear();
+  }
+  
   //! coord[mu]  <- mu  : fill with lattice coord in mu direction
   /* Assumes no inner grid */
   LatticeInteger latticeCoordinate(int mu)
   {
-    static multi1d<LatticeInteger> latCoord(Nd);
-    static std::vector<bool> availCoord(Nd,false);
-
     if (mu < 0 || mu >= Nd)
       QDP_error_exit("dimension out of bounds");
 
-    if (!availCoord[mu]) {
+    if (!latCoord[mu]) {
       //QDPIO::cout << "creating latticeCoordinate " << mu << "\n";
       const int nodeSites = Layout::sitesOnNode();
       const int nodeNumber = Layout::nodeNumber();
@@ -34,11 +41,11 @@ namespace Layout
 	  Integer cc = Layout::siteCoords(nodeNumber,i)[mu];
 	  d.elem(i) = cc.elem();
 	}
-      latCoord[mu] = d;
-      availCoord[mu] = true;
+      latCoord[mu] = std::make_shared<LatticeInteger>(d);
+      //*latCoord[mu] = d;
     }
     
-    return latCoord[mu];
+    return *latCoord[mu];
   }
 }
 
@@ -79,6 +86,12 @@ void Set::make(const SetFunc& fun)
   // Create the array holding the array of membertable info
   membertables.resize(nsubset_indices);
 
+  signOffTables();
+  
+  idSiteTable.resize(nsubset_indices);
+  idMemberTable.resize(nsubset_indices);
+
+  
   // Loop over linear sites determining their color
   for(int linear=0; linear < nodeSites; ++linear)
   {
@@ -179,7 +192,12 @@ void Set::make(const SetFunc& fun)
       start = end = -1;
     }
 
-    sub[cb].make(ordRep, start, end, &(sitetables[cb]), cb, this, &(membertables[cb]) );
+
+    idSiteTable[cb]   = sitetable.size()   > 0 ? QDP_get_global_cache().registrateOwnHostMem( sitetable.size()   * sizeof(int)  , sitetable.slice() , NULL ) : -1 ;
+    idMemberTable[cb] = membertable.size() > 0 ? QDP_get_global_cache().registrateOwnHostMem( membertable.size() * sizeof(bool) , membertable.slice() , NULL ) : -1 ;
+
+
+    sub[cb].make(ordRep, start, end, &sitetables[cb], &idSiteTable[cb], cb, this, &membertables[cb], &idMemberTable[cb] , -1 ); // -1 for the masterset id which is still unknown
 
 #if QDP_DEBUG >= 2
     QDP_info("Subset(%d)",cb);

@@ -30,6 +30,12 @@ public:
       this->elem(i).setup( j.elem(i) );
   }
 
+  void setup_value( const typename JITType< PColorVectorREG >::Type_t& j ) {
+    for (int i = 0 ; i < N ; i++ )
+      this->elem(i).setup_value( j.elem(i) );
+  }
+
+  
 
   //! PColorVectorREG = PColorVectorREG
   /*! Set equal to another PColorVectorREG */
@@ -209,6 +215,11 @@ struct BinaryReturn<PColorVectorREG<T1,N>, PColorVectorREG<T2,N>, FnLocalInnerPr
 };
 
 template<class T1, class T2, int N>
+struct BinaryReturn<PColorVectorREG<T1,N>, PColorVectorREG<T2,N>, FnLocalColorInnerProduct> {
+  typedef PScalarREG<typename BinaryReturn<T1, T2, FnLocalColorInnerProduct>::Type_t>  Type_t;
+};
+
+template<class T1, class T2, int N>
 struct BinaryReturn<PColorVectorREG<T1,N>, PColorVectorREG<T2,N>, FnInnerProductReal> {
   typedef PScalarREG<typename BinaryReturn<T1, T2, FnInnerProductReal>::Type_t>  Type_t;
 };
@@ -225,6 +236,23 @@ struct BinaryReturn<PColorVectorREG<T1,N>, PColorVectorREG<T2,N>, FnLocalInnerPr
 // Operators
 //-----------------------------------------------------------------------------
 
+
+  
+template<class T1, class T2, int N>
+inline PScalarREG<typename BinaryReturn<T1, T2, FnLocalColorInnerProduct>::Type_t>
+localColorInnerProduct(const PColorVectorREG<T1,N>& s1, const PColorVectorREG<T2,N>& s2)
+{
+  PScalarREG<typename BinaryReturn<T1, T2, FnLocalColorInnerProduct>::Type_t>  d;
+
+  d.elem() = adj( s1.elem(0) ) * s2.elem(0);
+  for(int i=1; i < N; ++i)
+    d.elem() += adj( s1.elem(i) ) * s2.elem(i);
+
+  return d;
+}
+
+
+  
 // Peeking and poking
 //! Extract color vector components 
 template<class T, int N>
@@ -240,7 +268,7 @@ peekColor(const PColorVectorREG<T,N>& l, llvm::Value * row)
 
   typedef typename JITType< PColorVectorREG<T,N> >::Type_t TTjit;
 
-  llvm::Value * ptr_local = llvm_alloca( llvm_type<typename WordType<T>::Type_t>::value , TTjit::Size_t );
+  llvm::Value * ptr_local = llvm_alloca( llvm_get_type<typename WordType<T>::Type_t>() , TTjit::Size_t );
 
   TTjit dj;
   dj.setup( ptr_local , JitDeviceLayout::Scalar );

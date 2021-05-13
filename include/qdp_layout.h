@@ -46,6 +46,9 @@ namespace Layout
   //! Set number of processors in a multi-threaded implementation
   void setNumProc(int N);
 
+  // Is the Layout initialized ?
+  bool initialized();
+  
   //! Returns the logical node number for the corresponding lattice coordinate
   /*! The API requires this function to be here */
   int nodeNumber(const multi1d<int>& coord) QDP_CONST;
@@ -123,6 +126,7 @@ namespace Layout
 	
   //! Get the I/O Node grid
   const multi1d<int>& getIONodeGrid() QDP_CONST;
+
 
 
 }

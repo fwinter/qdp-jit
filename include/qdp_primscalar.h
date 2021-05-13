@@ -170,7 +170,16 @@ private:
 };
 
 
+template<class T>
+struct FirstWord<PScalar<T> >
+{
+  static typename WordType<T>::Type_t get(const PScalar<T>& a)
+  {
+    return FirstWord<T>::get(a.elem());
+  }
+};
 
+    
 template<class T> 
 struct JITType<PScalar<T> >
 {
@@ -1437,6 +1446,12 @@ struct BinaryReturn<PScalar<T1>, PScalar<T2>, FnLocalInnerProduct > {
   typedef PScalar<typename BinaryReturn<T1, T2, FnLocalInnerProduct>::Type_t>  Type_t;
 };
 
+template<class T1, class T2>
+struct BinaryReturn<PScalar<T1>, PScalar<T2>, FnLocalColorInnerProduct > {
+  typedef PScalar<typename BinaryReturn<T1, T2, FnLocalColorInnerProduct>::Type_t>  Type_t;
+};
+
+  
 template<class T1, class T2>
 inline typename BinaryReturn<PScalar<T1>, PScalar<T2>, FnLocalInnerProduct>::Type_t
 localInnerProduct(const PScalar<T1>& s1, const PScalar<T2>& s2)

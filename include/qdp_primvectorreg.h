@@ -445,22 +445,20 @@ cmplx(const PVectorREG<T1,N,C>& s1, const PVectorREG<T2,N,C>& s2)
 
 
 
-#if 1
+
 template<class T1, int N, template<class,int> class C>
 struct UnaryReturn<PVectorREG<T1,N,C>, FnIsFinite> {
   typedef PScalarREG< typename UnaryReturn<T1, FnIsFinite >::Type_t > Type_t;
 };
-#endif
+
   
 template<class T1, int N, template<class,int> class C>
 inline typename UnaryReturn<PVectorREG<T1,N,C>, FnIsFinite>::Type_t
 isfinite(const PVectorREG<T1,N,C>& l)
 {
-  typename UnaryReturn<PVectorREG<T1,N,C>, FnIsFinite>::Type_t  d;
+  typename UnaryReturn<PVectorREG<T1,N,C>, FnIsFinite>::Type_t d(true);
 
-  d.elem() = isfinite(l.elem(0));
-
-  for(int i=1; i < N; ++i)
+  for(int i=0; i < N; ++i)
     d.elem() &= isfinite(l.elem(i));
 
   return d;
@@ -880,17 +878,6 @@ where(const PScalarREG<T1>& a, const PVectorREG<T2,N,C>& b, const PVectorREG<T3,
 }
 
 
-template<class T, int N, template<class,int> class C>
-inline void 
-qdpPHI(PVectorREG<T,N,C>& d, 
-       const PVectorREG<T,N,C>& phi0, llvm::BasicBlock* bb0 ,
-       const PVectorREG<T,N,C>& phi1, llvm::BasicBlock* bb1 )
-{
-  for(int i=0; i < N; ++i)
-    qdpPHI(d.elem(i),
-	   phi0.elem(i),bb0,
-	   phi1.elem(i),bb1);
-}
 
 
 
