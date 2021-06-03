@@ -8,7 +8,9 @@ PETE_HDRS =  PETE/Combiners.h \
              PETE/ForEachInOrderStatic.h \
              PETE/OperatorTags.h \
              PETE/Scalar.h \
-             PETE/TypeComputations.h
+             PETE/TypeComputations.h \
+             PETE/PETE_furjedes.h \
+             PETE/FurJedes.h
 
 # HEADERS for the memory allocator
 MEMORY_HDRS = qdp_allocator.h \

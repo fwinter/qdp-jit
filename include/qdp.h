@@ -98,10 +98,13 @@ using std::ostream;
 #include "qdp_datalayout.h"
 
 
+
+
 // Basic includes
 #define PETE_USER_DEFINED_EXPRESSION
 namespace QDP {
 #include <PETE/PETE.h>
+#include <PETE/PETE_furjedes.h>
 }
 
 #include "qdp_init.h"
@@ -148,6 +151,7 @@ namespace QDP {
 
 #include "qdp_subset.h"
 #include "qdp_stopwatch.h"
+
 
 #include "qdp_pete_visitors.h"
 
@@ -218,6 +222,8 @@ namespace QDP {
 #else
 #error "Unknown architecture ARCH"
 #endif
+
+
 
 
 #include "qdp_internal.h"
