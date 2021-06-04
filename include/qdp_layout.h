@@ -127,7 +127,14 @@ namespace Layout
   //! Get the I/O Node grid
   const multi1d<int>& getIONodeGrid() QDP_CONST;
 
-
+#if (QDP_USE_CACHEBLOCK_LAYOUT == 1) || (QDP_USE_VNODE_LAYOUT == 1)
+  multi1d<int> virtualNodeGeom();
+  multi1d<int> virtualNodeLattSize();
+  int virtualNodeSites();
+  int virtualNodeNumber();
+  void setDefaultVirtualNodeGeom();
+  void setVirtualNodeGeom(const multi1d<int>&);
+#endif
 
 }
 

@@ -12,6 +12,18 @@
 
 namespace QDP {
 
+  namespace
+{
+  template<class T>
+  inline
+  StandardOutputStream& operator<<(StandardOutputStream& s, const multi1d<T>& d)
+  {
+    for(int i=0; i < d.size(); ++i)
+      s << d[i] << " ";
+    return s;
+  }
+}
+
 namespace Layout
 {
   //! Returns the logical node coordinates for the corresponding lattice coordinate
@@ -51,6 +63,117 @@ namespace Layout
       return nodeNumber(wrapped_coords);
     }
   }
+
+#if (QDP_USE_CACHEBLOCK_LAYOUT == 1) || (QDP_USE_VNODE_LAYOUT == 1)
+  multi1d<int> m_virtual_node_geom;
+
+#if QDP_USE_VNODE_LAYOUT == 1
+  void setDefaultVirtualNodeGeom()
+  {
+    if ( jit_config_get_layout() != JitLayout::vnode )
+      {
+	QDPIO::cout << "setDefaultVirtualNodeGeom not vnode\n";
+	return;
+      }
+
+    if (m_virtual_node_geom.size() != Nd)
+      {
+	QDPIO::cout << "Virtual node setup (based on default warpsize of " << jit_config_gpu_warpsize() << "):" << std::endl;
+	    
+	multi1d<int> n(Nd);
+	n = 1;
+	int rem = jit_config_gpu_warpsize();
+	int pos = Nd-1;
+
+	while( rem > 1 )
+	  {
+	    n[pos--] *= 2;
+
+	    if ( pos == -1 )
+	      pos = Nd-1;
+	
+	    rem >>= 1;
+	  }
+
+	m_virtual_node_geom = n;
+      }
+    else
+      {
+	QDPIO::cout << "Virtual node setup (user request):" << std::endl;
+	QDPIO::cout << "Virtual node used for SIMD layout." << std::endl;
+      }
+
+    QDPIO::cout << "  vnode geometry = " << Layout::virtualNodeGeom() << std::endl;
+    QDPIO::cout << "  vnode local size = " << Layout::virtualNodeLattSize() << std::endl;
+    QDPIO::cout << "  sites within vnode = " << Layout::virtualNodeSites() << std::endl;
+    QDPIO::cout << "  number of vnodes = " << Layout::virtualNodeNumber() << std::endl;
+  }
+#endif
+
+  
+#if QDP_USE_CACHEBLOCK_LAYOUT == 1
+  void setDefaultVirtualNodeGeom()
+  {
+    if (m_virtual_node_geom.size() != Nd)
+      {
+	QDPIO::cout << "Default virtual node setup (1 1 1 1)" << std::endl;
+	multi1d<int> n(Nd);
+	n = 1;
+	m_virtual_node_geom = n;
+      }
+    else
+      {
+	QDPIO::cout << "Virtual node setup (user request):" << std::endl;
+	QDPIO::cout << "Virtual node used for cache blocking." << std::endl;
+      }
+    QDPIO::cout << "  vnode geometry = " << Layout::virtualNodeGeom() << std::endl;
+    QDPIO::cout << "  vnode local size = " << Layout::virtualNodeLattSize() << std::endl;
+    QDPIO::cout << "  sites within vnode = " << Layout::virtualNodeSites() << std::endl;
+    QDPIO::cout << "  number of vnodes = " << Layout::virtualNodeNumber() << std::endl;
+  }
+#endif
+  
+  
+  void setVirtualNodeGeom(const multi1d<int>& g)
+  {
+    if (g.size() != Nd)
+      {
+	std::cerr << "virtual node geometry not " << Nd << " dimensional." << std::endl;
+	QDP_abort(1);
+      }
+    m_virtual_node_geom = g;
+  }
+  
+  multi1d<int> virtualNodeGeom()
+  {
+    return m_virtual_node_geom;
+  }
+  
+  multi1d<int> virtualNodeLattSize()
+  {
+    multi1d<int> tmp(Nd);
+    for( int i = 0 ; i < tmp.size() ; ++i )
+      tmp[i] = Layout::subgridLattSize()[i] / virtualNodeGeom()[i];
+    return tmp;
+  }
+
+  int virtualNodeSites()
+  {
+    int tmp = virtualNodeLattSize()[0];
+    for( int i = 1 ; i < virtualNodeLattSize().size() ; ++i )
+      tmp *= virtualNodeLattSize()[i];
+    return tmp;
+  }
+
+  int virtualNodeNumber()
+  {
+    int tmp = virtualNodeGeom()[0];
+    for( int i = 1 ; i < virtualNodeGeom().size() ; ++i )
+      tmp *= virtualNodeGeom()[i];
+    return tmp;
+  }
+#endif
+  
 }
 
 

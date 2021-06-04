@@ -482,6 +482,17 @@ namespace QDP {
 		logical_iogeom[j] = uu;
 	      }
 	  }
+	else if (strcmp((*argv)[i], "-vnodegeom")==0) 
+	  {
+	    multi1d<int> nrow(Nd);
+	    for(int j=0; j < Nd; j++) 
+	      {
+		int uu;
+		sscanf((*argv)[++i], "%d", &uu);
+		nrow[j] = uu;
+	      }
+	    Layout::setVirtualNodeGeom(nrow);
+	  }
 	else if (strcmp((*argv)[i], "-lat")==0) 
 	  {
 	    multi1d<int> nrow(Nd);

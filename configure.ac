@@ -363,7 +363,7 @@ double)
 esac
 
 AC_ARG_ENABLE(layout,
-  AC_HELP_STRING([--enable-layout=lexico|cb2|cb3d|cb32],
+  AC_HELP_STRING([--enable-layout=lexico|cb2|cb3d|cb32|vnode|cacheblock],
                  [Sets the layout. lexico=lexicographic, cb2=even odd checkerboard, cb3d=even odd checkerboard in 3d, cb32=hypercubic checkerboard. (default is cb2)]),
   [ ac_layout=${enableval} ],
   [ ac_layout="cb2" ]
@@ -385,6 +385,14 @@ cb3d|checkerboard-3d)
 cb32|hyper|hypercube)
 	AC_SUBST(CONFIG_LAYOUT,[cb32])
 	AC_DEFINE(QDP_USE_CB32_LAYOUT, [1], [Use hypercube checkerboard layout])
+	;;
+vnode|virtualnode)
+	AC_SUBST(CONFIG_LAYOUT,[vnode])
+	AC_DEFINE(QDP_USE_VNODE_LAYOUT, [1], [Use virtual node layout])
+	;;
+cache|cacheblock|cacheblocking)
+	AC_SUBST(CONFIG_LAYOUT,[cacheblock])
+	AC_DEFINE(QDP_USE_CACHEBLOCK_LAYOUT, [1], [Use cache blocking layout])
 	;;
 *)
 	AC_MSG_ERROR([Unsupported Layout. Check --enable-layout])
